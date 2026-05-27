@@ -1,0 +1,41 @@
+[package]
+name = "rnaseq-standard-flow"
+kind = "flow"
+version = "0.1.0"
+release = 1
+license = "Apache-2.0"
+main = "src/main.taf"
+
+[repository]
+url = "https://github.com/taffish/rnaseq-standard-flow"
+
+[command]
+name = "taf-rnaseq-standard-flow"
+
+[runtime]
+pipe = false
+command_mode = false
+
+[meta]
+domain = "bio"
+categories = ["rna-seq", "standard", "workflow", "transcriptomics", "report"]
+keywords = ["rnaseq-standard-flow", "rna-seq", "salmon", "hisat2", "featurecounts", "deseq2", "enrichment", "report", "transcriptomics"]
+description = "TAFFISH RNA-seq standard flow that composes the published RNA-seq subflows into a default Salmon-first route with an optional HISAT2/featureCounts alignment-count branch."
+
+[upstream]
+name = "rnaseq-standard-flow"
+type = "taffish-flow"
+homepage = "https://github.com/taffish/rnaseq-standard-flow"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "TAFFISH-maintained RNA-seq umbrella flow composed from version-pinned TAFFISH RNA-seq subflow apps."
+
+[dependencies]
+taf-rnaseq-index-flow = "0.1.0-r1"
+taf-rnaseq-expression-flow = "0.1.0-r1"
+taf-rnaseq-alignment-flow = "0.1.0-r1"
+taf-rnaseq-alignment-qc-flow = "0.1.0-r1"
+taf-rnaseq-count-flow = "0.1.0-r1"
+taf-rnaseq-de-flow = "0.1.0-r2"
+taf-rnaseq-enrichment-flow = "0.1.0-r3"
+taf-rnaseq-report-flow = "0.1.0-r3"

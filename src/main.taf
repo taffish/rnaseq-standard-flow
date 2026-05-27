@@ -1,0 +1,1182 @@
+ARGS
+<!(--samples)samples>
+<!(--genome)genome>
+<!(--annotation)annotation>
+<!(--metadata)metadata>
+<!(--design)design>
+<!(--contrast)contrast>
+<!(--gene-sets)gene-sets>
+<(--background)background>
+<!(--outdir/-o)outdir>
+<(--threads/-t)threads>
+  2
+<(--route)route>
+  salmon
+<(--de-source)de-source>
+  salmon
+<(--library-type)library-type>
+  A
+<(--indexer)indexer>
+  salmon
+<(--kmer)kmer>
+  31
+<(--min-assigned-frags)min-assigned-frags>
+  10
+<(--counts-from-abundance)counts-from-abundance>
+  no
+<(--rna-strandness)rna-strandness>
+  none
+<(--alignment-min-mapq)alignment-min-mapq>
+  0
+<(--count-strand)count-strand>
+  0
+<(--count-feature-type)count-feature-type>
+  exon
+<(--count-attribute)count-attribute>
+  gene_id
+<(--count-min-assigned-reads)count-min-assigned-reads>
+  0
+<(--qc-mapq)qc-mapq>
+  30
+<(--infer-sample-size)infer-sample-size>
+  200000
+<(--java-mem-size)java-mem-size>
+  4G
+<(--sequencing-protocol)sequencing-protocol>
+  non-strand-specific
+<(--sample-column)sample-column>
+  sample
+<(--gene-column)gene-column>
+  gene_id
+<(--padj-cutoff)padj-cutoff>
+  0.05
+<(--lfc-cutoff)lfc-cutoff>
+  1
+<(--fit-type)fit-type>
+  parametric
+<(--lfc-shrink)lfc-shrink>
+  none
+<(--coef)coef>
+<(--min-count)min-count>
+  1
+<(--min-samples)min-samples>
+  2
+<(--top-var)top-var>
+  500
+<(--top-heatmap)top-heatmap>
+  50
+<(--enrichment-min-size)enrichment-min-size>
+  2
+<(--enrichment-max-size)enrichment-max-size>
+  500
+<(--enrichment-pvalue-cutoff)enrichment-pvalue-cutoff>
+  1
+<(--enrichment-padj-method)enrichment-padj-method>
+  BH
+<(--enrichment-top-n)enrichment-top-n>
+  20
+<(--enrichment-seed)enrichment-seed>
+  1
+<(--project-name)project-name>
+  RNA-seq project
+
+RUN
+<taffish>
+set -eu
+
+FLOW_NAME="rnaseq-standard-flow"
+FLOW_VERSION="0.1.0-r1"
+
+samples_arg="::!(--samples)samples::"
+genome_arg="::!(--genome)genome::"
+annotation_arg="::!(--annotation)annotation::"
+metadata_arg="::!(--metadata)metadata::"
+design="::!(--design)design::"
+contrast="::!(--contrast)contrast::"
+gene_sets_arg="::!(--gene-sets)gene-sets::"
+background_arg="::background::"
+outdir_arg="::!(--outdir/-o)outdir::"
+threads="::(--threads/-t)threads::"
+route="::route::"
+de_source="::de-source::"
+library_type="::library-type::"
+indexer="::indexer::"
+kmer="::kmer::"
+min_assigned_frags="::min-assigned-frags::"
+counts_from_abundance="::counts-from-abundance::"
+rna_strandness="::rna-strandness::"
+alignment_min_mapq="::alignment-min-mapq::"
+count_strand="::count-strand::"
+count_feature_type="::count-feature-type::"
+count_attribute="::count-attribute::"
+count_min_assigned_reads="::count-min-assigned-reads::"
+qc_mapq="::qc-mapq::"
+infer_sample_size="::infer-sample-size::"
+java_mem_size="::java-mem-size::"
+sequencing_protocol="::sequencing-protocol::"
+sample_column="::sample-column::"
+gene_column="::gene-column::"
+padj_cutoff="::padj-cutoff::"
+lfc_cutoff="::lfc-cutoff::"
+fit_type="::fit-type::"
+lfc_shrink="::lfc-shrink::"
+coef="::coef::"
+min_count="::min-count::"
+min_samples="::min-samples::"
+top_var="::top-var::"
+top_heatmap="::top-heatmap::"
+enrichment_min_size="::enrichment-min-size::"
+enrichment_max_size="::enrichment-max-size::"
+enrichment_pvalue_cutoff="::enrichment-pvalue-cutoff::"
+enrichment_padj_method="::enrichment-padj-method::"
+enrichment_top_n="::enrichment-top-n::"
+enrichment_seed="::enrichment-seed::"
+project_name="::project-name::"
+trim_arg="::(--trim)trim?::"
+skip_fastqc_arg="::(--skip-fastqc)skip-fastqc?::"
+force_arg="::(--force)force?::"
+
+export genome_path annotation_path ref_out threads indexer genome_indexer kmer
+export samples_path salmon_index tx2gene expression_out library_type min_assigned_frags counts_from_abundance
+export route de_source hisat2_index_prefix genes_gtf alignment_out alignment_qc_out count_out
+export rna_strandness alignment_min_mapq count_strand count_feature_type count_attribute count_min_assigned_reads
+export qc_mapq infer_sample_size java_mem_size sequencing_protocol paired_flag bam_files count_counts_file
+export metadata_path design contrast de_out sample_column gene_column padj_cutoff lfc_cutoff
+export counts_file fit_type lfc_shrink coef min_count min_samples top_var top_heatmap
+export gene_sets_path background_path enrichment_out enrichment_min_size enrichment_max_size
+export gene_list ranked_genes enrichment_pvalue_cutoff enrichment_padj_method enrichment_top_n enrichment_seed
+export outdir report_out project_name standard_plots_dir plot_files_file
+
+flow_log=""
+
+log() {
+    printf '%s [%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$FLOW_NAME" "$*" >&2
+    if [ -n "$flow_log" ]; then
+        printf '%s [%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$FLOW_NAME" "$*" >> "$flow_log"
+    fi
+}
+
+fail() {
+    log "ERROR: $*"
+    exit 1
+}
+
+sq() {
+    printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
+json_string() {
+    printf '%s' "$1" | awk '
+        BEGIN {
+            ORS = ""
+            bs = sprintf("%c", 92)
+            dq = sprintf("%c", 34)
+            tabc = sprintf("%c", 9)
+            cr = sprintf("%c", 13)
+            printf dq
+        }
+        {
+            for (i = 1; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == bs) {
+                    printf "%s%s", bs, bs
+                } else if (c == dq) {
+                    printf "%s%s", bs, dq
+                } else if (c == tabc) {
+                    printf "%st", bs
+                } else if (c == cr) {
+                    printf "%sr", bs
+                } else {
+                    printf "%s", c
+                }
+            }
+        }
+        END {
+            printf dq
+        }
+    '
+}
+
+json_optional_string() {
+    if [ -n "$1" ]; then
+        json_string "$1"
+    else
+        printf 'null'
+    fi
+}
+
+json_both_string() {
+    if [ "$route" = "both" ]; then
+        json_string "$1"
+    else
+        printf 'null'
+    fi
+}
+
+resolve_path() {
+    path_value=$1
+    base_dir=$2
+    case "$path_value" in
+        /*) printf '%s\n' "$path_value" ;;
+        *) printf '%s/%s\n' "$base_dir" "$path_value" ;;
+    esac
+}
+
+is_true() {
+    case "$1" in
+        T|t|true|TRUE|True|1|yes|YES|Yes) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+is_integer() {
+    awk -v x="$1" 'BEGIN { exit !(x ~ /^[0-9]+$/) }'
+}
+
+is_decimal() {
+    awk -v x="$1" 'BEGIN { exit !(x ~ /^[0-9]+([.][0-9]+)?$/) }'
+}
+
+record_command() {
+    step_name=$1
+    cmd=$2
+    printf '\n# [%s]\n%s\n' "$step_name" "$cmd" >> "$commands_file"
+}
+
+append_upstream_versions() {
+    module=$1
+    source_file=$2
+    if [ -s "$source_file" ]; then
+        awk -F '\t' -v OFS='\t' -v module="$module" '
+            NR == 1 { next }
+            NF >= 2 {
+                source = (NF >= 3 ? $3 : "upstream report")
+                print $1, $2, module ":" source
+            }
+        ' "$source_file" >> "$versions_file"
+    fi
+}
+
+append_upstream_methods() {
+    module=$1
+    source_file=$2
+    if [ -s "$source_file" ]; then
+        {
+            printf '\n## Upstream module: %s\n\n' "$module"
+            cat "$source_file"
+            printf '\n'
+        } >> "$methods_file"
+    fi
+}
+
+append_upstream_commands() {
+    module=$1
+    source_file=$2
+    if [ -s "$source_file" ]; then
+        {
+            printf '\n# ----- Upstream module: %s -----\n' "$module"
+            cat "$source_file"
+            printf '\n# ----- End upstream module: %s -----\n' "$module"
+        } >> "$commands_file"
+    fi
+}
+
+safe_name() {
+    printf '%s' "$1" | sed 's/[^A-Za-z0-9_.-]/_/g'
+}
+
+file_size() {
+    wc -c < "$1" | awk '{ print $1 + 0 }'
+}
+
+collect_standard_plot() {
+    module=$1
+    role=$2
+    source_file=$3
+    format=$4
+    [ -s "$source_file" ] || {
+        printf 'ERROR: missing expected %s plot %s (%s): %s\n' "$module" "$role" "$format" "$source_file" >&2
+        exit 2
+    }
+    case "$format" in
+        png) dest_dir="$standard_plots_dir/png" ;;
+        pdf) dest_dir="$standard_plots_dir/pdf" ;;
+        *) dest_dir="$standard_plots_dir/other" ;;
+    esac
+    mkdir -p "$dest_dir"
+    dest_file="$dest_dir/$(safe_name "$module").$(safe_name "$role").$format"
+    cp "$source_file" "$dest_file"
+    size=$(file_size "$dest_file")
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$module" "$role" "$format" "$source_file" "$dest_file" "$size" >> "$plot_files_file"
+    standard_plot_count=$((standard_plot_count + 1))
+}
+
+collect_all_standard_plots() {
+    standard_plot_count=0
+    rm -rf "$standard_plots_dir"
+    mkdir -p "$standard_plots_dir/png" "$standard_plots_dir/pdf"
+    {
+        printf 'module\tplot\tformat\tsource\tcopied_path\tsize_bytes\n'
+    } > "$plot_files_file"
+
+    collect_standard_plot "de" "pca_plot" "$de_out/03_results/plots/pca_plot.pdf" "pdf"
+    collect_standard_plot "de" "pca_plot" "$de_out/03_results/plots/pca_plot.png" "png"
+    collect_standard_plot "de" "ma_plot" "$de_out/03_results/plots/ma_plot.pdf" "pdf"
+    collect_standard_plot "de" "ma_plot" "$de_out/03_results/plots/ma_plot.png" "png"
+    collect_standard_plot "de" "volcano_plot" "$de_out/03_results/plots/volcano_plot.pdf" "pdf"
+    collect_standard_plot "de" "volcano_plot" "$de_out/03_results/plots/volcano_plot.png" "png"
+    collect_standard_plot "de" "deg_counts_barplot" "$de_out/03_results/plots/deg_counts_barplot.pdf" "pdf"
+    collect_standard_plot "de" "deg_counts_barplot" "$de_out/03_results/plots/deg_counts_barplot.png" "png"
+    collect_standard_plot "de" "heatmap" "$de_out/03_results/plots/heatmap.pdf" "pdf"
+    collect_standard_plot "de" "heatmap" "$de_out/03_results/plots/heatmap.png" "png"
+    collect_standard_plot "de" "sample_correlation_heatmap" "$de_out/03_results/plots/sample_correlation_heatmap.pdf" "pdf"
+    collect_standard_plot "de" "sample_correlation_heatmap" "$de_out/03_results/plots/sample_correlation_heatmap.png" "png"
+    collect_standard_plot "de" "expression_distribution" "$de_out/03_results/plots/expression_distribution.pdf" "pdf"
+    collect_standard_plot "de" "expression_distribution" "$de_out/03_results/plots/expression_distribution.png" "png"
+    collect_standard_plot "de" "normalized_count_distribution" "$de_out/03_results/plots/normalized_count_distribution.pdf" "pdf"
+    collect_standard_plot "de" "normalized_count_distribution" "$de_out/03_results/plots/normalized_count_distribution.png" "png"
+    collect_standard_plot "de" "top_genes_expression" "$de_out/03_results/plots/top_genes_expression.pdf" "pdf"
+    collect_standard_plot "de" "top_genes_expression" "$de_out/03_results/plots/top_genes_expression.png" "png"
+    collect_standard_plot "enrichment" "dotplot" "$enrichment_out/03_results/enrichment/dotplot.pdf" "pdf"
+    collect_standard_plot "enrichment" "dotplot" "$enrichment_out/03_results/enrichment/dotplot.png" "png"
+    collect_standard_plot "enrichment" "dotplot_original" "$enrichment_out/03_results/enrichment/dotplot.original.pdf" "pdf"
+    collect_standard_plot "enrichment" "dotplot_original" "$enrichment_out/03_results/enrichment/dotplot.original.png" "png"
+    collect_standard_plot "enrichment" "ora_barplot" "$enrichment_out/03_results/enrichment/ora_barplot.pdf" "pdf"
+    collect_standard_plot "enrichment" "ora_barplot" "$enrichment_out/03_results/enrichment/ora_barplot.png" "png"
+    collect_standard_plot "enrichment" "gsea_nes_plot" "$enrichment_out/03_results/enrichment/gsea_nes_plot.pdf" "pdf"
+    collect_standard_plot "enrichment" "gsea_nes_plot" "$enrichment_out/03_results/enrichment/gsea_nes_plot.png" "png"
+    collect_standard_plot "enrichment" "gsea_enrichment_curves" "$enrichment_out/03_results/enrichment/gsea_enrichment_curves.pdf" "pdf"
+    collect_standard_plot "enrichment" "gsea_enrichment_curves" "$enrichment_out/03_results/enrichment/gsea_enrichment_curves.png" "png"
+}
+
+copy_report_file() {
+    source_file=$1
+    dest_file=$2
+    if [ -s "$source_file" ]; then
+        cp "$source_file" "$dest_file"
+    fi
+}
+
+copy_top_report_html() {
+    source_file=$1
+    dest_file=$2
+    if [ -s "$source_file" ]; then
+        sed 's#\.\./03_results/collected_#../03_results/report/03_results/collected_#g' "$source_file" > "$dest_file"
+    fi
+}
+
+for core_cmd in awk basename cat chmod cp date dirname grep mkdir rm sed sh sort tr wc; do
+    command -v "$core_cmd" >/dev/null 2>&1 || fail "missing required shell utility: $core_cmd"
+done
+
+case "$route" in
+    salmon|both) ;;
+    *) fail "--route must be salmon or both" ;;
+esac
+
+case "$de_source" in
+    salmon|featurecounts) ;;
+    *) fail "--de-source must be salmon or featurecounts" ;;
+esac
+
+if [ "$de_source" = "featurecounts" ] && [ "$route" != "both" ]; then
+    fail "--de-source featurecounts requires --route both"
+fi
+
+case "$indexer" in
+    salmon|both) ;;
+    *) fail "--indexer must be salmon or both" ;;
+esac
+
+case "$counts_from_abundance" in
+    no|scaledTPM|lengthScaledTPM|dtuScaledTPM) ;;
+    *) fail "--counts-from-abundance must be one of: no, scaledTPM, lengthScaledTPM, dtuScaledTPM" ;;
+esac
+
+case "$rna_strandness" in
+    none|F|R|FR|RF) ;;
+    *) fail "--rna-strandness must be one of: none, F, R, FR, RF" ;;
+esac
+
+case "$count_strand" in
+    0|1|2) ;;
+    *) fail "--count-strand must be one of: 0, 1, 2" ;;
+esac
+
+case "$count_feature_type" in
+    '') fail "--count-feature-type cannot be empty" ;;
+    *[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:-]*) fail "--count-feature-type contains unsupported characters: $count_feature_type" ;;
+esac
+
+case "$count_attribute" in
+    '') fail "--count-attribute cannot be empty" ;;
+    *[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:-]*) fail "--count-attribute contains unsupported characters: $count_attribute" ;;
+esac
+
+case "$sequencing_protocol" in
+    non-strand-specific|strand-specific-forward|strand-specific-reverse) ;;
+    *) fail "--sequencing-protocol must be non-strand-specific, strand-specific-forward, or strand-specific-reverse" ;;
+esac
+
+case "$java_mem_size" in
+    ''|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-]*) fail "--java-mem-size contains unsupported characters: $java_mem_size" ;;
+esac
+
+case "$fit_type" in
+    parametric|local|mean) ;;
+    *) fail "--fit-type must be one of: parametric, local, mean" ;;
+esac
+
+case "$lfc_shrink" in
+    none|ashr|apeglm) ;;
+    *) fail "--lfc-shrink must be one of: none, ashr, apeglm" ;;
+esac
+
+case "$enrichment_padj_method" in
+    holm|hochberg|hommel|bonferroni|BH|BY|fdr|none) ;;
+    *) fail "--enrichment-padj-method must be one of: holm, hochberg, hommel, bonferroni, BH, BY, fdr, none" ;;
+esac
+
+case "$design" in
+    "~"*) ;;
+    *) fail "--design must be a DESeq2 formula, for example: ~ condition" ;;
+esac
+
+contrast_factor=$(printf '%s\n' "$contrast" | awk -F ':' 'NF == 3 && $1 != "" && $2 != "" && $3 != "" { print $1 }')
+[ -n "$contrast_factor" ] || fail "--contrast must look like factor:numerator:denominator"
+
+is_integer "$threads" || fail "--threads must be a positive integer"
+[ "$threads" -gt 0 ] || fail "--threads must be greater than zero"
+is_integer "$kmer" || fail "--kmer must be a positive integer"
+[ "$kmer" -gt 0 ] || fail "--kmer must be greater than zero"
+is_integer "$min_assigned_frags" || fail "--min-assigned-frags must be a non-negative integer"
+is_integer "$alignment_min_mapq" || fail "--alignment-min-mapq must be a non-negative integer"
+is_integer "$count_min_assigned_reads" || fail "--count-min-assigned-reads must be a non-negative integer"
+is_integer "$qc_mapq" || fail "--qc-mapq must be a non-negative integer"
+is_integer "$infer_sample_size" || fail "--infer-sample-size must be a positive integer"
+[ "$infer_sample_size" -gt 0 ] || fail "--infer-sample-size must be greater than zero"
+is_decimal "$padj_cutoff" || fail "--padj-cutoff must be a number between 0 and 1"
+awk -v x="$padj_cutoff" 'BEGIN { exit !(x >= 0 && !(x > 1)) }' || fail "--padj-cutoff must be between 0 and 1"
+is_decimal "$lfc_cutoff" || fail "--lfc-cutoff must be a non-negative number"
+is_integer "$min_count" || fail "--min-count must be a non-negative integer"
+is_integer "$min_samples" || fail "--min-samples must be a non-negative integer"
+is_integer "$top_var" || fail "--top-var must be a positive integer"
+[ "$top_var" -gt 0 ] || fail "--top-var must be greater than zero"
+is_integer "$top_heatmap" || fail "--top-heatmap must be a positive integer"
+[ "$top_heatmap" -gt 0 ] || fail "--top-heatmap must be greater than zero"
+is_integer "$enrichment_min_size" || fail "--enrichment-min-size must be a positive integer"
+[ "$enrichment_min_size" -gt 0 ] || fail "--enrichment-min-size must be greater than zero"
+is_integer "$enrichment_max_size" || fail "--enrichment-max-size must be a positive integer"
+[ "$enrichment_max_size" -ge "$enrichment_min_size" ] || fail "--enrichment-max-size must be greater than or equal to --enrichment-min-size"
+is_decimal "$enrichment_pvalue_cutoff" || fail "--enrichment-pvalue-cutoff must be a number between 0 and 1"
+awk -v x="$enrichment_pvalue_cutoff" 'BEGIN { exit !(x >= 0 && !(x > 1)) }' || fail "--enrichment-pvalue-cutoff must be between 0 and 1"
+is_integer "$enrichment_top_n" || fail "--enrichment-top-n must be a positive integer"
+[ "$enrichment_top_n" -gt 0 ] || fail "--enrichment-top-n must be greater than zero"
+is_integer "$enrichment_seed" || fail "--enrichment-seed must be a non-negative integer"
+
+if [ "$lfc_shrink" = "apeglm" ] && [ -z "$coef" ]; then
+    fail "--lfc-shrink apeglm requires --coef with a DESeq2 resultsNames(dds) value"
+fi
+
+case "$outdir_arg" in
+    ''|'.'|'..'|'/') fail "--outdir must be a dedicated output directory" ;;
+esac
+
+cwd=$(pwd)
+samples_path=$(resolve_path "$samples_arg" "$cwd")
+genome_path=$(resolve_path "$genome_arg" "$cwd")
+annotation_path=$(resolve_path "$annotation_arg" "$cwd")
+metadata_path=$(resolve_path "$metadata_arg" "$cwd")
+gene_sets_path=$(resolve_path "$gene_sets_arg" "$cwd")
+outdir=$(resolve_path "$outdir_arg" "$cwd")
+
+[ -r "$samples_path" ] || fail "cannot read --samples: $samples_path"
+[ -r "$genome_path" ] || fail "cannot read --genome: $genome_path"
+[ -r "$annotation_path" ] || fail "cannot read --annotation: $annotation_path"
+[ -r "$metadata_path" ] || fail "cannot read --metadata: $metadata_path"
+[ -r "$gene_sets_path" ] || fail "cannot read --gene-sets: $gene_sets_path"
+
+have_background=no
+background_path=""
+if [ -n "$background_arg" ]; then
+    background_path=$(resolve_path "$background_arg" "$cwd")
+    [ -r "$background_path" ] || fail "cannot read --background: $background_path"
+    have_background=yes
+fi
+
+trim_flag=false
+skip_fastqc_flag=false
+if is_true "$trim_arg"; then
+    trim_flag=true
+fi
+if is_true "$skip_fastqc_arg"; then
+    skip_fastqc_flag=true
+fi
+
+if [ -e "$outdir" ]; then
+    if is_true "$force_arg"; then
+        [ -d "$outdir" ] || fail "--outdir exists and is not a directory: $outdir"
+        rm -rf "$outdir/00_inputs" "$outdir/01_logs" "$outdir/02_intermediate" "$outdir/03_results" "$outdir/04_reports" "$outdir/run.manifest.json"
+    else
+        fail "--outdir already exists: $outdir (use --force to replace rnaseq-standard-flow outputs)"
+    fi
+fi
+
+inputs_dir="$outdir/00_inputs"
+logs_dir="$outdir/01_logs"
+logs_steps_dir="$logs_dir/steps"
+intermediate_dir="$outdir/02_intermediate"
+results_dir="$outdir/03_results"
+reports_dir="$outdir/04_reports"
+
+ref_out="$results_dir/reference"
+expression_out="$results_dir/expression"
+alignment_out="$results_dir/alignment"
+alignment_qc_out="$results_dir/alignment_qc"
+count_out="$results_dir/count"
+de_out="$results_dir/de"
+enrichment_out="$results_dir/enrichment"
+report_out="$results_dir/report"
+standard_plots_dir="$results_dir/plots"
+
+if [ "$route" = "both" ]; then
+    genome_indexer="hisat2"
+else
+    genome_indexer="none"
+fi
+
+mkdir -p "$inputs_dir" "$logs_steps_dir" "$intermediate_dir" "$results_dir" "$reports_dir"
+
+flow_log="$logs_dir/flow.log"
+commands_file="$reports_dir/commands.sh"
+versions_file="$reports_dir/versions.tsv"
+methods_file="$reports_dir/methods.txt"
+flow_summary_file="$reports_dir/flow_summary.tsv"
+subflows_file="$reports_dir/subflows.tsv"
+plot_files_file="$reports_dir/plot_files.tsv"
+manifest_file="$outdir/run.manifest.json"
+started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+: > "$flow_log"
+{
+    printf '#!/bin/sh\n'
+    printf 'set -eu\n\n'
+    printf '# Generated by %s %s at %s\n' "$FLOW_NAME" "$FLOW_VERSION" "$started_at"
+    printf '# Re-run from a shell with the same input paths and TAFFISH dependency commands in PATH.\n\n'
+} > "$commands_file"
+chmod +x "$commands_file"
+
+{
+    printf 'tool\tversion\tsource\n'
+    printf 'rnaseq-standard-flow\t%s\ttaffish flow\n' "$FLOW_VERSION"
+    printf 'taf-rnaseq-index-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-expression-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-alignment-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-alignment-qc-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-count-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-de-flow\t0.1.0-r2\ttaffish dependency\n'
+    printf 'taf-rnaseq-enrichment-flow\t0.1.0-r3\ttaffish dependency\n'
+    printf 'taf-rnaseq-report-flow\t0.1.0-r3\ttaffish dependency\n'
+} > "$versions_file"
+
+{
+    printf '%s %s runs the r1 RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
+    printf 'The default route prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
+    printf 'With --route both it also runs HISAT2 alignment, alignment-level QC, and featureCounts gene counting. Differential expression uses --de-source to choose Salmon/tximport or featureCounts counts.\n'
+    printf 'The flow does not download references, gene sets, or databases at runtime. It writes all generated files under the explicit output directory.\n'
+} > "$methods_file"
+
+printf 'step\tflow\toutdir\tstatus\n' > "$subflows_file"
+
+log "begin $FLOW_NAME $FLOW_VERSION"
+
+log "START 01_prepare_inputs"
+if {
+    cp "$samples_path" "$inputs_dir/samples.tsv"
+    cp "$metadata_path" "$inputs_dir/metadata.tsv"
+    cp "$gene_sets_path" "$inputs_dir/gene_sets.gmt"
+    if [ "$have_background" = yes ]; then
+        cp "$background_path" "$inputs_dir/background.tsv"
+    fi
+    {
+        printf 'role\tpath\n'
+        printf 'samples\t%s\n' "$samples_path"
+        printf 'genome\t%s\n' "$genome_path"
+        printf 'annotation\t%s\n' "$annotation_path"
+        printf 'metadata\t%s\n' "$metadata_path"
+        printf 'gene_sets\t%s\n' "$gene_sets_path"
+        [ "$have_background" = no ] || printf 'background\t%s\n' "$background_path"
+    } > "$inputs_dir/standard_inputs.tsv"
+    sample_count=$(awk 'NR > 1 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$samples_path")
+    metadata_sample_count=$(awk 'NR > 1 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$metadata_path")
+    gene_set_count=$(awk -F '\t' 'NF >= 3 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$gene_sets_path")
+    sample_layout_stats=$(awk -F '\t' '
+        NR == 1 {
+            for (i = 1; i <= NF; i++) col[$i] = i
+            read2_col = ("read2" in col) ? col["read2"] : 0
+            next
+        }
+        $0 !~ /^[ \t\r]*$/ {
+            if (read2_col > 0 && read2_col <= NF && $read2_col != "") paired++
+            else single++
+        }
+        END { printf "%s %s", paired + 0, single + 0 }
+    ' "$samples_path")
+    read2_present_count=${sample_layout_stats% *}
+    read2_absent_count=${sample_layout_stats#* }
+    paired_flag=false
+    if [ "$read2_present_count" -gt 0 ]; then
+        paired_flag=true
+    fi
+    if [ "$route" = "both" ] && [ "$read2_present_count" -gt 0 ] && [ "$read2_absent_count" -gt 0 ]; then
+        printf 'ERROR: --route both requires homogeneous single-end or paired-end samples; found paired=%s single=%s\n' "$read2_present_count" "$read2_absent_count"
+        exit 2
+    fi
+    printf 'samples\t%s\n' "$sample_count"
+    printf 'metadata_samples\t%s\n' "$metadata_sample_count"
+    printf 'gene_sets\t%s\n' "$gene_set_count"
+    printf 'route\t%s\n' "$route"
+    printf 'de_source\t%s\n' "$de_source"
+    printf 'trim\t%s\n' "$trim_flag"
+    printf 'skip_fastqc\t%s\n' "$skip_fastqc_flag"
+    printf 'paired_samples\t%s\n' "$read2_present_count"
+    printf 'single_end_samples\t%s\n' "$read2_absent_count"
+    printf 'paired_flag\t%s\n' "$paired_flag"
+    [ "$sample_count" -gt 0 ] || {
+        printf 'ERROR: --samples contains no sample rows\n'
+        exit 2
+    }
+    [ "$metadata_sample_count" -gt 0 ] || {
+        printf 'ERROR: --metadata contains no sample rows\n'
+        exit 2
+    }
+    [ "$gene_set_count" -gt 0 ] || {
+        printf 'ERROR: --gene-sets contains no GMT gene sets\n'
+        exit 2
+    }
+} > "$logs_steps_dir/01_prepare_inputs.log" 2>&1; then
+    log "DONE  01_prepare_inputs"
+else
+    log "FAIL  01_prepare_inputs; see $logs_steps_dir/01_prepare_inputs.log"
+    exit 1
+fi
+
+step_name="02_rnaseq_index"
+step_log="$logs_steps_dir/${step_name}.log"
+index_cmd="taf-rnaseq-index-flow-v0.1.0-r1 --genome $(sq "$genome_path") --annotation $(sq "$annotation_path") --outdir $(sq "$ref_out") --threads $(sq "$threads") --indexer $(sq "$indexer") --genome-indexer $(sq "$genome_indexer") --kmer $(sq "$kmer") --force"
+record_command "$step_name" "$index_cmd"
+log "START $step_name"
+if {
+    printf '# step: %s\n' "$step_name"
+    printf '# command: %s\n' "$index_cmd"
+    [[taf: taf-rnaseq-index-flow-v0.1.0-r1 --genome '"$genome_path"' --annotation '"$annotation_path"' --outdir '"$ref_out"' --threads '"$threads"' --indexer '"$indexer"' --genome-indexer '"$genome_indexer"' --kmer '"$kmer"' --force ]] </dev/null
+    [ -s "$ref_out/03_results/salmon_index/info.json" ] || {
+        printf 'ERROR: rnaseq-index-flow did not produce Salmon index info.json\n'
+        exit 2
+    }
+    [ -s "$ref_out/03_results/tx2gene.tsv" ] || {
+        printf 'ERROR: rnaseq-index-flow did not produce tx2gene.tsv\n'
+        exit 2
+    }
+    if [ "$route" = "both" ]; then
+        [ -s "$ref_out/03_results/hisat2_index/genome.1.ht2" ] || [ -s "$ref_out/03_results/hisat2_index/genome.1.ht2l" ] || {
+            printf 'ERROR: rnaseq-index-flow did not produce HISAT2 genome index for --route both\n'
+            exit 2
+        }
+    fi
+} > "$step_log" 2>&1; then
+    log "DONE  $step_name"
+    printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-index-flow" "$ref_out" >> "$subflows_file"
+else
+    status=$?
+    log "FAIL  $step_name; see $step_log"
+    exit "$status"
+fi
+
+salmon_index="$ref_out/03_results/salmon_index"
+tx2gene="$ref_out/03_results/tx2gene.tsv"
+hisat2_index_prefix="$ref_out/03_results/hisat2_index/genome"
+genes_gtf="$ref_out/03_results/annotation/genes.gtf"
+[ -s "$salmon_index/info.json" ] || fail "rnaseq-index-flow did not produce Salmon index info.json"
+[ -s "$tx2gene" ] || fail "rnaseq-index-flow did not produce tx2gene.tsv"
+[ -s "$genes_gtf" ] || fail "rnaseq-index-flow did not produce genes.gtf"
+
+step_name="03_rnaseq_expression"
+step_log="$logs_steps_dir/${step_name}.log"
+expression_cmd="taf-rnaseq-expression-flow-v0.1.0-r1 --samples $(sq "$samples_path") --index $(sq "$salmon_index") --tx2gene $(sq "$tx2gene") --outdir $(sq "$expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --min-assigned-frags $(sq "$min_assigned_frags") --counts-from-abundance $(sq "$counts_from_abundance") --force"
+[ "$trim_flag" = false ] || expression_cmd="$expression_cmd --trim"
+[ "$skip_fastqc_flag" = false ] || expression_cmd="$expression_cmd --skip-fastqc"
+record_command "$step_name" "$expression_cmd"
+log "START $step_name"
+if {
+    printf '# step: %s\n' "$step_name"
+    printf '# command: %s\n' "$expression_cmd"
+    if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
+        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --skip-fastqc --force ]] </dev/null
+    elif [ "$trim_flag" = true ]; then
+        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --force ]] </dev/null
+    elif [ "$skip_fastqc_flag" = true ]; then
+        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --skip-fastqc --force ]] </dev/null
+    else
+        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --force ]] </dev/null
+    fi
+    [ -s "$expression_out/03_results/matrices/gene_counts.tsv" ] || {
+        printf 'ERROR: rnaseq-expression-flow did not produce gene_counts.tsv\n'
+        exit 2
+    }
+} > "$step_log" 2>&1; then
+    log "DONE  $step_name"
+    printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-expression-flow" "$expression_out" >> "$subflows_file"
+else
+    status=$?
+    log "FAIL  $step_name; see $step_log"
+    exit "$status"
+fi
+
+counts_file="$expression_out/03_results/matrices/gene_counts.tsv"
+[ -s "$counts_file" ] || fail "rnaseq-expression-flow did not produce gene_counts.tsv"
+
+if [ "$route" = "both" ]; then
+    [ -s "$hisat2_index_prefix.1.ht2" ] || [ -s "$hisat2_index_prefix.1.ht2l" ] || fail "HISAT2 index prefix is missing for --route both: $hisat2_index_prefix"
+
+    step_name="04_rnaseq_alignment"
+    step_log="$logs_steps_dir/${step_name}.log"
+    alignment_cmd="taf-rnaseq-alignment-flow-v0.1.0-r1 --samples $(sq "$samples_path") --index $(sq "$hisat2_index_prefix") --outdir $(sq "$alignment_out") --threads $(sq "$threads") --rna-strandness $(sq "$rna_strandness") --min-mapq $(sq "$alignment_min_mapq") --force"
+    [ "$trim_flag" = false ] || alignment_cmd="$alignment_cmd --trim"
+    record_command "$step_name" "$alignment_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$alignment_cmd"
+        if [ "$trim_flag" = true ]; then
+            [[taf: taf-rnaseq-alignment-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --trim --force ]] </dev/null
+        else
+            [[taf: taf-rnaseq-alignment-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --force ]] </dev/null
+        fi
+        [ -s "$alignment_out/04_reports/bam_files.tsv" ] || {
+            printf 'ERROR: rnaseq-alignment-flow did not produce bam_files.tsv\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-alignment-flow" "$alignment_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    bam_files="$alignment_out/04_reports/bam_files.tsv"
+
+    step_name="05_rnaseq_alignment_qc"
+    step_log="$logs_steps_dir/${step_name}.log"
+    alignment_qc_cmd="taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams $(sq "$bam_files") --gtf $(sq "$genes_gtf") --outdir $(sq "$alignment_qc_out") --threads $(sq "$threads") --java-mem-size $(sq "$java_mem_size") --mapq $(sq "$qc_mapq") --infer-sample-size $(sq "$infer_sample_size") --sequencing-protocol $(sq "$sequencing_protocol") --force"
+    [ "$paired_flag" = false ] || alignment_qc_cmd="$alignment_qc_cmd --paired"
+    record_command "$step_name" "$alignment_qc_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$alignment_qc_cmd"
+        if [ "$paired_flag" = true ]; then
+            [[taf: taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --paired --force ]] </dev/null
+        else
+            [[taf: taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --force ]] </dev/null
+        fi
+        [ -s "$alignment_qc_out/04_reports/rnaseq_qc_summary.tsv" ] || {
+            printf 'ERROR: rnaseq-alignment-qc-flow did not produce rnaseq_qc_summary.tsv\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-alignment-qc-flow" "$alignment_qc_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    step_name="06_rnaseq_count"
+    step_log="$logs_steps_dir/${step_name}.log"
+    count_cmd="taf-rnaseq-count-flow-v0.1.0-r1 --bams $(sq "$bam_files") --annotation $(sq "$genes_gtf") --outdir $(sq "$count_out") --threads $(sq "$threads") --strand $(sq "$count_strand") --feature-type $(sq "$count_feature_type") --attribute $(sq "$count_attribute") --min-mapq $(sq "$alignment_min_mapq") --min-assigned-reads $(sq "$count_min_assigned_reads") --force"
+    [ "$paired_flag" = false ] || count_cmd="$count_cmd --paired"
+    record_command "$step_name" "$count_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$count_cmd"
+        if [ "$paired_flag" = true ]; then
+            [[taf: taf-rnaseq-count-flow-v0.1.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --paired --force ]] </dev/null
+        else
+            [[taf: taf-rnaseq-count-flow-v0.1.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --force ]] </dev/null
+        fi
+        [ -s "$count_out/03_results/matrices/gene_counts.tsv" ] || {
+            printf 'ERROR: rnaseq-count-flow did not produce gene_counts.tsv\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-count-flow" "$count_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    count_counts_file="$count_out/03_results/matrices/gene_counts.tsv"
+else
+    printf 'route=salmon; alignment branch skipped.\n' > "$logs_steps_dir/04_rnaseq_alignment.log"
+    printf 'route=salmon; alignment QC branch skipped.\n' > "$logs_steps_dir/05_rnaseq_alignment_qc.log"
+    printf 'route=salmon; featureCounts branch skipped.\n' > "$logs_steps_dir/06_rnaseq_count.log"
+    printf '%s\t%s\t%s\tskipped\n' "04_rnaseq_alignment" "rnaseq-alignment-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "05_rnaseq_alignment_qc" "rnaseq-alignment-qc-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "06_rnaseq_count" "rnaseq-count-flow" "" >> "$subflows_file"
+    count_counts_file=""
+fi
+
+if [ "$de_source" = "featurecounts" ]; then
+    counts_file="$count_counts_file"
+else
+    counts_file="$expression_out/03_results/matrices/gene_counts.tsv"
+fi
+[ -s "$counts_file" ] || fail "selected --de-source did not produce a readable count matrix: $de_source"
+
+step_name="07_rnaseq_de"
+step_log="$logs_steps_dir/${step_name}.log"
+de_cmd="taf-rnaseq-de-flow-v0.1.0-r2 --counts $(sq "$counts_file") --metadata $(sq "$metadata_path") --design $(sq "$design") --contrast $(sq "$contrast") --outdir $(sq "$de_out") --sample-column $(sq "$sample_column") --gene-column $(sq "$gene_column") --padj-cutoff $(sq "$padj_cutoff") --lfc-cutoff $(sq "$lfc_cutoff") --fit-type $(sq "$fit_type") --lfc-shrink $(sq "$lfc_shrink") --min-count $(sq "$min_count") --min-samples $(sq "$min_samples") --top-var $(sq "$top_var") --top-heatmap $(sq "$top_heatmap") --force"
+[ -z "$coef" ] || de_cmd="$de_cmd --coef $(sq "$coef")"
+record_command "$step_name" "$de_cmd"
+log "START $step_name"
+if {
+    printf '# step: %s\n' "$step_name"
+    printf '# command: %s\n' "$de_cmd"
+    if [ -n "$coef" ]; then
+        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force --coef '"$coef"' ]] </dev/null
+    else
+        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force ]] </dev/null
+    fi
+    [ -s "$de_out/03_results/gene_lists/significant_genes.tsv" ] || {
+        printf 'ERROR: rnaseq-de-flow did not produce significant_genes.tsv\n'
+        exit 2
+    }
+    [ -s "$de_out/03_results/gene_lists/ranked_genes.tsv" ] || {
+        printf 'ERROR: rnaseq-de-flow did not produce ranked_genes.tsv\n'
+        exit 2
+    }
+    [ -s "$de_out/03_results/plots/plot_summary.tsv" ] || {
+        printf 'ERROR: rnaseq-de-flow r2 did not produce plot_summary.tsv\n'
+        exit 2
+    }
+    [ -s "$de_out/03_results/plots/deg_counts_barplot.pdf" ] || {
+        printf 'ERROR: rnaseq-de-flow r2 did not produce deg_counts_barplot.pdf\n'
+        exit 2
+    }
+    [ -s "$de_out/03_results/plots/sample_correlation_heatmap.png" ] || {
+        printf 'ERROR: rnaseq-de-flow r2 did not produce sample_correlation_heatmap.png\n'
+        exit 2
+    }
+} > "$step_log" 2>&1; then
+    log "DONE  $step_name"
+    printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-de-flow" "$de_out" >> "$subflows_file"
+else
+    status=$?
+    log "FAIL  $step_name; see $step_log"
+    exit "$status"
+fi
+
+gene_list="$de_out/03_results/gene_lists/significant_genes.tsv"
+ranked_genes="$de_out/03_results/gene_lists/ranked_genes.tsv"
+[ -s "$gene_list" ] || fail "rnaseq-de-flow did not produce significant_genes.tsv"
+[ -s "$ranked_genes" ] || fail "rnaseq-de-flow did not produce ranked_genes.tsv"
+
+if [ "$have_background" = yes ]; then
+    enrichment_inputs_dir="$intermediate_dir/enrichment_inputs"
+    mkdir -p "$enrichment_inputs_dir"
+    filtered_gene_list="$enrichment_inputs_dir/significant_genes.background.tsv"
+    filtered_ranked_genes="$enrichment_inputs_dir/ranked_genes.background.tsv"
+    background_filter_report="$enrichment_inputs_dir/background_filter.tsv"
+
+    awk -F '\t' -v OFS='\t' '
+        FNR == NR {
+            if (FNR == 1 && $1 == "gene_id") next
+            if ($1 != "") bg[$1] = 1
+            next
+        }
+        FNR == 1 { print; next }
+        $1 in bg { print }
+    ' "$background_path" "$gene_list" > "$filtered_gene_list"
+
+    awk -F '\t' -v OFS='\t' '
+        FNR == NR {
+            if (FNR == 1 && $1 == "gene_id") next
+            if ($1 != "") bg[$1] = 1
+            next
+        }
+        FNR == 1 { print; next }
+        $1 in bg { print }
+    ' "$background_path" "$ranked_genes" > "$filtered_ranked_genes"
+
+    original_gene_list_rows=$(awk 'NR > 1 { c++ } END { print c + 0 }' "$gene_list")
+    filtered_gene_list_rows=$(awk 'NR > 1 { c++ } END { print c + 0 }' "$filtered_gene_list")
+    original_ranked_rows=$(awk 'NR > 1 { c++ } END { print c + 0 }' "$ranked_genes")
+    filtered_ranked_rows=$(awk 'NR > 1 { c++ } END { print c + 0 }' "$filtered_ranked_genes")
+    {
+        printf 'metric\tvalue\n'
+        printf 'original_gene_list_genes\t%s\n' "$original_gene_list_rows"
+        printf 'background_filtered_gene_list_genes\t%s\n' "$filtered_gene_list_rows"
+        printf 'original_ranked_genes\t%s\n' "$original_ranked_rows"
+        printf 'background_filtered_ranked_genes\t%s\n' "$filtered_ranked_rows"
+    } > "$background_filter_report"
+    [ "$filtered_ranked_rows" -gt 0 ] || fail "background filtering removed all ranked genes before enrichment"
+
+    gene_list="$filtered_gene_list"
+    ranked_genes="$filtered_ranked_genes"
+fi
+
+step_name="08_rnaseq_enrichment"
+step_log="$logs_steps_dir/${step_name}.log"
+enrichment_cmd="taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list $(sq "$gene_list") --ranked-genes $(sq "$ranked_genes") --gene-sets $(sq "$gene_sets_path") --outdir $(sq "$enrichment_out") --id-column gene_id --score-column score --min-size $(sq "$enrichment_min_size") --max-size $(sq "$enrichment_max_size") --pvalue-cutoff $(sq "$enrichment_pvalue_cutoff") --padj-method $(sq "$enrichment_padj_method") --top-n $(sq "$enrichment_top_n") --seed $(sq "$enrichment_seed") --force"
+[ "$have_background" = no ] || enrichment_cmd="$enrichment_cmd --background $(sq "$background_path")"
+record_command "$step_name" "$enrichment_cmd"
+log "START $step_name"
+if {
+    printf '# step: %s\n' "$step_name"
+    printf '# command: %s\n' "$enrichment_cmd"
+    if [ "$have_background" = yes ]; then
+        [[taf: taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --background '"$background_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force ]] </dev/null
+    else
+        [[taf: taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force ]] </dev/null
+    fi
+    [ -s "$enrichment_out/03_results/enrichment/ora_results.tsv" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow did not produce ora_results.tsv\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/gsea_results.tsv" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow did not produce gsea_results.tsv\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/dotplot.pdf" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce dotplot.pdf\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/dotplot.png" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce dotplot.png\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/plot_summary.tsv" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce plot_summary.tsv\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/ora_barplot.png" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce ora_barplot.png\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/gsea_nes_plot.png" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce gsea_nes_plot.png\n'
+        exit 2
+    }
+    [ -s "$enrichment_out/03_results/enrichment/gsea_enrichment_curves.png" ] || {
+        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce gsea_enrichment_curves.png\n'
+        exit 2
+    }
+} > "$step_log" 2>&1; then
+    log "DONE  $step_name"
+    printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-enrichment-flow" "$enrichment_out" >> "$subflows_file"
+else
+    status=$?
+    log "FAIL  $step_name; see $step_log"
+    exit "$status"
+fi
+
+step_name="09_rnaseq_report"
+step_log="$logs_steps_dir/${step_name}.log"
+report_cmd="taf-rnaseq-report-flow-v0.1.0-r3 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --outdir $(sq "$report_out") --force"
+record_command "$step_name" "$report_cmd"
+log "START $step_name"
+if {
+    printf '# step: %s\n' "$step_name"
+    printf '# pre-report: collect split PNG/PDF standard plot gallery\n'
+    collect_all_standard_plots
+    printf '# command: %s\n' "$report_cmd"
+    [[taf: taf-rnaseq-report-flow-v0.1.0-r3 --standard-out '"$outdir"' --project-name '"$project_name"' --outdir '"$report_out"' --force ]] </dev/null
+    [ -s "$report_out/04_reports/rnaseq_report.html" ] || {
+        printf 'ERROR: rnaseq-report-flow did not produce rnaseq_report.html\n'
+        exit 2
+    }
+} > "$step_log" 2>&1; then
+    log "DONE  $step_name"
+    printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-report-flow" "$report_out" >> "$subflows_file"
+else
+    status=$?
+    log "FAIL  $step_name; see $step_log"
+    exit "$status"
+fi
+
+[ -s "$report_out/04_reports/rnaseq_report.html" ] || fail "rnaseq-report-flow did not produce rnaseq_report.html"
+
+log "START 10_collect_reports"
+if {
+    printf '# step: 10_collect_reports\n'
+    printf '# command: collect top-level reports and merged provenance from subflow outputs\n'
+    finished_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+    copy_top_report_html "$report_out/04_reports/rnaseq_report.html" "$reports_dir/rnaseq_report.html"
+    copy_report_file "$report_out/04_reports/project_summary.tsv" "$reports_dir/project_summary.tsv"
+    copy_report_file "$report_out/04_reports/collected_files.tsv" "$reports_dir/collected_files.tsv"
+    if [ "$have_background" = yes ] && [ -s "$background_filter_report" ]; then
+        cp "$background_filter_report" "$reports_dir/enrichment_background_filter.tsv"
+    fi
+
+    append_upstream_versions "reference" "$ref_out/04_reports/versions.tsv"
+    append_upstream_versions "expression" "$expression_out/04_reports/versions.tsv"
+    if [ "$route" = "both" ]; then
+        append_upstream_versions "alignment" "$alignment_out/04_reports/versions.tsv"
+        append_upstream_versions "alignment_qc" "$alignment_qc_out/04_reports/versions.tsv"
+        append_upstream_versions "count" "$count_out/04_reports/versions.tsv"
+    fi
+    append_upstream_versions "de" "$de_out/04_reports/versions.tsv"
+    append_upstream_versions "enrichment" "$enrichment_out/04_reports/versions.tsv"
+    append_upstream_versions "report" "$report_out/04_reports/versions.tsv"
+
+    append_upstream_methods "reference" "$ref_out/04_reports/methods.txt"
+    append_upstream_methods "expression" "$expression_out/04_reports/methods.txt"
+    if [ "$route" = "both" ]; then
+        append_upstream_methods "alignment" "$alignment_out/04_reports/methods.txt"
+        append_upstream_methods "alignment_qc" "$alignment_qc_out/04_reports/methods.txt"
+        append_upstream_methods "count" "$count_out/04_reports/methods.txt"
+    fi
+    append_upstream_methods "de" "$de_out/04_reports/methods.txt"
+    append_upstream_methods "enrichment" "$enrichment_out/04_reports/methods.txt"
+    append_upstream_methods "report" "$report_out/04_reports/methods.txt"
+
+    append_upstream_commands "reference" "$ref_out/04_reports/commands.sh"
+    append_upstream_commands "expression" "$expression_out/04_reports/commands.sh"
+    if [ "$route" = "both" ]; then
+        append_upstream_commands "alignment" "$alignment_out/04_reports/commands.sh"
+        append_upstream_commands "alignment_qc" "$alignment_qc_out/04_reports/commands.sh"
+        append_upstream_commands "count" "$count_out/04_reports/commands.sh"
+    fi
+    append_upstream_commands "de" "$de_out/04_reports/commands.sh"
+    append_upstream_commands "enrichment" "$enrichment_out/04_reports/commands.sh"
+    append_upstream_commands "report" "$report_out/04_reports/commands.sh"
+
+    {
+        printf 'metric\tvalue\n'
+        printf 'flow\t%s\n' "$FLOW_NAME"
+        printf 'version\t%s\n' "$FLOW_VERSION"
+        printf 'route\t%s\n' "$route"
+        printf 'de_source\t%s\n' "$de_source"
+        printf 'project_name\t%s\n' "$project_name"
+        printf 'started_at\t%s\n' "$started_at"
+        printf 'finished_at\t%s\n' "$finished_at"
+        printf 'sample_count\t%s\n' "$sample_count"
+        printf 'metadata_samples\t%s\n' "$metadata_sample_count"
+        printf 'gene_sets\t%s\n' "$gene_set_count"
+        printf 'trim\t%s\n' "$trim_flag"
+        printf 'skip_fastqc\t%s\n' "$skip_fastqc_flag"
+        printf 'indexer\t%s\n' "$indexer"
+        printf 'genome_indexer\t%s\n' "$genome_indexer"
+        printf 'paired_flag\t%s\n' "$paired_flag"
+        printf 'counts_file\t%s\n' "$counts_file"
+        printf 'reference_out\t%s\n' "$ref_out"
+        printf 'expression_out\t%s\n' "$expression_out"
+        printf 'alignment_out\t%s\n' "$alignment_out"
+        printf 'alignment_qc_out\t%s\n' "$alignment_qc_out"
+        printf 'count_out\t%s\n' "$count_out"
+        printf 'de_out\t%s\n' "$de_out"
+        printf 'enrichment_out\t%s\n' "$enrichment_out"
+        printf 'report_out\t%s\n' "$report_out"
+        printf 'top_report\t%s\n' "$reports_dir/rnaseq_report.html"
+        printf 'standard_plots\t%s\n' "$standard_plot_count"
+        printf 'plot_files\t%s\n' "$plot_files_file"
+        printf 'plots_dir\t%s\n' "$standard_plots_dir"
+    } > "$flow_summary_file"
+
+    {
+        printf '{\n'
+        printf '  "flow": "rnaseq-standard-flow",\n'
+        printf '  "version": %s,\n' "$(json_string "$FLOW_VERSION")"
+        printf '  "route": %s,\n' "$(json_string "$route")"
+        printf '  "de_source": %s,\n' "$(json_string "$de_source")"
+        printf '  "project_name": %s,\n' "$(json_string "$project_name")"
+        printf '  "started_at": %s,\n' "$(json_string "$started_at")"
+        printf '  "finished_at": %s,\n' "$(json_string "$finished_at")"
+        printf '  "inputs": {\n'
+        printf '    "samples": %s,\n' "$(json_string "$samples_path")"
+        printf '    "genome": %s,\n' "$(json_string "$genome_path")"
+        printf '    "annotation": %s,\n' "$(json_string "$annotation_path")"
+        printf '    "metadata": %s,\n' "$(json_string "$metadata_path")"
+        printf '    "gene_sets": %s,\n' "$(json_string "$gene_sets_path")"
+        printf '    "background": %s\n' "$(json_optional_string "$background_path")"
+        printf '  },\n'
+        printf '  "parameters": {\n'
+        printf '    "threads": %s,\n' "$threads"
+        printf '    "route": %s,\n' "$(json_string "$route")"
+        printf '    "de_source": %s,\n' "$(json_string "$de_source")"
+        printf '    "library_type": %s,\n' "$(json_string "$library_type")"
+        printf '    "indexer": %s,\n' "$(json_string "$indexer")"
+        printf '    "genome_indexer": %s,\n' "$(json_string "$genome_indexer")"
+        printf '    "trim": %s,\n' "$trim_flag"
+        printf '    "skip_fastqc": %s,\n' "$skip_fastqc_flag"
+        printf '    "rna_strandness": %s,\n' "$(json_string "$rna_strandness")"
+        printf '    "alignment_min_mapq": %s,\n' "$alignment_min_mapq"
+        printf '    "count_strand": %s,\n' "$(json_string "$count_strand")"
+        printf '    "count_feature_type": %s,\n' "$(json_string "$count_feature_type")"
+        printf '    "count_attribute": %s,\n' "$(json_string "$count_attribute")"
+        printf '    "count_min_assigned_reads": %s,\n' "$count_min_assigned_reads"
+        printf '    "qc_mapq": %s,\n' "$qc_mapq"
+        printf '    "infer_sample_size": %s,\n' "$infer_sample_size"
+        printf '    "java_mem_size": %s,\n' "$(json_string "$java_mem_size")"
+        printf '    "sequencing_protocol": %s,\n' "$(json_string "$sequencing_protocol")"
+        printf '    "paired": %s,\n' "$paired_flag"
+        printf '    "design": %s,\n' "$(json_string "$design")"
+        printf '    "contrast": %s,\n' "$(json_string "$contrast")"
+        printf '    "padj_cutoff": %s,\n' "$padj_cutoff"
+        printf '    "lfc_cutoff": %s\n' "$lfc_cutoff"
+        printf '  },\n'
+        printf '  "dependencies": {\n'
+        printf '    "taf-rnaseq-index-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-expression-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-alignment-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-alignment-qc-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-count-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-de-flow": "0.1.0-r2",\n'
+        printf '    "taf-rnaseq-enrichment-flow": "0.1.0-r3",\n'
+        printf '    "taf-rnaseq-report-flow": "0.1.0-r3"\n'
+        printf '  },\n'
+        printf '  "outputs": {\n'
+        printf '    "reference": %s,\n' "$(json_string "$ref_out")"
+        printf '    "expression": %s,\n' "$(json_string "$expression_out")"
+        printf '    "alignment": %s,\n' "$(json_both_string "$alignment_out")"
+        printf '    "alignment_qc": %s,\n' "$(json_both_string "$alignment_qc_out")"
+        printf '    "count": %s,\n' "$(json_both_string "$count_out")"
+        printf '    "counts_file": %s,\n' "$(json_string "$counts_file")"
+        printf '    "de": %s,\n' "$(json_string "$de_out")"
+        printf '    "enrichment": %s,\n' "$(json_string "$enrichment_out")"
+        printf '    "report": %s,\n' "$(json_string "$report_out")"
+        printf '    "top_report": %s,\n' "$(json_string "$reports_dir/rnaseq_report.html")"
+        printf '    "plots": %s,\n' "$(json_string "$standard_plots_dir")"
+        printf '    "plot_files": %s,\n' "$(json_string "$plot_files_file")"
+        printf '    "flow_summary": %s,\n' "$(json_string "$flow_summary_file")"
+        printf '    "subflows": %s,\n' "$(json_string "$subflows_file")"
+        printf '    "versions": %s,\n' "$(json_string "$versions_file")"
+        printf '    "methods": %s\n' "$(json_string "$methods_file")"
+        printf '  }\n'
+        printf '}\n'
+    } > "$manifest_file"
+
+    [ -s "$reports_dir/rnaseq_report.html" ] || {
+        printf 'ERROR: top-level rnaseq_report.html is missing\n'
+        exit 2
+    }
+    printf 'report\t%s\n' "$reports_dir/rnaseq_report.html"
+    printf 'flow_summary\t%s\n' "$flow_summary_file"
+    printf 'subflows\t%s\n' "$subflows_file"
+} > "$logs_steps_dir/10_collect_reports.log" 2>&1; then
+    log "DONE  10_collect_reports"
+else
+    log "FAIL  10_collect_reports; see $logs_steps_dir/10_collect_reports.log"
+    exit 1
+fi
+
+log "completed. Report: $reports_dir/rnaseq_report.html"
+log "summary: $flow_summary_file"
