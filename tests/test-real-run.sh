@@ -11,7 +11,7 @@ THREADS="${TAFFISH_RNASEQ_REAL_THREADS:-6}"
 
 taf build
 
-../target/taf-rnaseq-standard-flow-v0.1.0-r1 \
+../target/taf-rnaseq-standard-flow-v0.1.0-r2 \
   --samples "$DATA/yeast-snf2-fastq-mini-v1/samples.tsv" \
   --genome "$DATA/yeast-reference-sgd-r64.4.1-v1/reference/genome/yeast_s288c_reference_genome_R64-4-1.fa" \
   --annotation "$DATA/yeast-reference-sgd-r64.4.1-v1/reference/annotation/yeast_s288c_gene_annotation_R64-4-1.gff3" \

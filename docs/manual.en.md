@@ -282,7 +282,7 @@ This does not mean featureCounts is universally more correct than Salmon. Salmon
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `--library-type` | `A` | Salmon library type. `A` lets Salmon infer the type. |
-| `--indexer` | `salmon` | Build `salmon` or `both` reference indexes. r1 quantification still uses Salmon. |
+| `--indexer` | `salmon` | Build `salmon` or `both` reference indexes. r2 quantification still uses Salmon. |
 | `--kmer` | `31` | k-mer setting for Salmon/Kallisto index construction. |
 | `--trim` | off | Run fastp trimming inside the expression subflow. |
 | `--skip-fastqc` | off | Skip FastQC inside the expression subflow. |
@@ -356,6 +356,7 @@ rnaseq-standard-out/
       pdf/
   04_reports/
     rnaseq_report.html
+    report_interpretation.html
     plot_files.tsv
     commands.sh
     versions.tsv
@@ -370,6 +371,7 @@ Important files:
 | File | Purpose |
 | --- | --- |
 | `04_reports/rnaseq_report.html` | Main project report entry point. |
+| `04_reports/report_interpretation.html` | Companion RNA-seq interpretation guide with long-form biological and technical explanations. |
 | `03_results/report/` | Full report-flow collected output. |
 | `03_results/plots/png/` | Top-level PNG plot collection. |
 | `03_results/plots/pdf/` | Top-level PDF plot collection. |
@@ -510,6 +512,6 @@ Open the final report from `04_reports/rnaseq_report.html`, and keep the whole o
 - infer strandedness automatically;
 - remove failed samples automatically;
 - replace a production workflow engine;
-- use Kallisto for expression quantification in r1, although it can build a Kallisto index.
+- use Kallisto for expression quantification in r2, although it can build a Kallisto index.
 
 If a project needs complex batch correction, interaction models, splicing analysis, fusion detection, allele-specific expression, single-cell RNA-seq, or clinical reporting, use this flow as a reproducible baseline and design additional analyses on top of its outputs.

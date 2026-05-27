@@ -54,7 +54,7 @@ for dep in \
     taf-rnaseq-count-flow-v0.1.0-r1 \
     taf-rnaseq-de-flow-v0.1.0-r2 \
     taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.1.0-r3
+    taf-rnaseq-report-flow-v0.1.0-r4
 do
     if ! command -v "$dep" >/dev/null 2>&1; then
         echo "smoke: dependency wrapper not found in PATH: $dep" >&2
@@ -82,7 +82,7 @@ taf check
 echo "[SMOKE] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.1.0-r1"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.1.0-r2"
 if [ ! -x "$flow_cmd" ]; then
     echo "smoke: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -360,7 +360,7 @@ grep -F 'taf-rnaseq-index-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/nu
 grep -F 'taf-rnaseq-expression-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.1.0-r3 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.1.0-r4 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH standard smoke' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -373,6 +373,10 @@ grep -F 'ORA top-term barplot' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'GSEA NES ranking' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'GSEA enrichment curves' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'Top gene expression' "$out/04_reports/rnaseq_report.html" >/dev/null
+test -s "$out/04_reports/report_interpretation.html"
+grep -F 'guide-sidebar' "$out/04_reports/report_interpretation.html" >/dev/null
+grep -F 'Long-Form Module Chapters' "$out/04_reports/report_interpretation.html" >/dev/null
+grep -F '长文模块章节' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F '../03_results/report/03_results/collected_plots/de.pca_plot.png' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F '../03_results/report/03_results/collected_html/expression.multiqc/index.html' "$out/04_reports/rnaseq_report.html" >/dev/null
 if grep -F '../03_results/collected_' "$out/04_reports/rnaseq_report.html" >/dev/null; then
@@ -464,7 +468,9 @@ grep -F '06_rnaseq_count	rnaseq-count-flow' "$out/04_reports/subflows.tsv" >/dev
 grep -F 'taf-rnaseq-alignment-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.1.0-r3 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.1.0-r4 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+test -s "$out/04_reports/report_interpretation.html"
+grep -F 'guide-sidebar' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F 'provided_modules	8' "$out/03_results/report/04_reports/project_summary.tsv" >/dev/null
 grep -F 'plot_groups	14' "$out/03_results/report/04_reports/project_summary.tsv" >/dev/null
 grep -F '"route": "both"' "$out/run.manifest.json" >/dev/null

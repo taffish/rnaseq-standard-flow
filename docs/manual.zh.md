@@ -282,7 +282,7 @@ YAL002W
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
 | `--library-type` | `A` | Salmon library type。`A` 表示自动推断。 |
-| `--indexer` | `salmon` | reference 阶段建立 `salmon` 或 `both` 索引。r1 quant 仍使用 Salmon。 |
+| `--indexer` | `salmon` | reference 阶段建立 `salmon` 或 `both` 索引。r2 quant 仍使用 Salmon。 |
 | `--kmer` | `31` | Salmon/Kallisto index k-mer 参数。 |
 | `--trim` | off | 在 expression subflow 中启用 fastp trimming。 |
 | `--skip-fastqc` | off | 跳过 expression subflow 中的 FastQC。 |
@@ -356,6 +356,7 @@ rnaseq-standard-out/
       pdf/
   04_reports/
     rnaseq_report.html
+    report_interpretation.html
     plot_files.tsv
     commands.sh
     versions.tsv
@@ -370,6 +371,7 @@ rnaseq-standard-out/
 | 文件 | 用途 |
 | --- | --- |
 | `04_reports/rnaseq_report.html` | 最终项目报告入口。 |
+| `04_reports/report_interpretation.html` | 配套 RNA-seq 解读指南，包含更长的生物学和技术解释。 |
 | `03_results/report/` | report-flow 的完整收集结果。 |
 | `03_results/plots/png/` | 顶层 PNG 图集。 |
 | `03_results/plots/pdf/` | 顶层 PDF 图集。 |
@@ -510,6 +512,6 @@ taf-rnaseq-standard-flow \
 - 不自动判断 strandedness。
 - 不自动删除失败样本。
 - 不替代完整生产级 workflow engine。
-- r1 可以构建 Kallisto index，但表达定量仍走 Salmon。
+- r2 可以构建 Kallisto index，但表达定量仍走 Salmon。
 
 如果项目需要复杂 batch correction、多因素交互设计、splicing analysis、fusion detection、allele-specific expression、single-cell RNA-seq 或临床级报告，应在本流程输出的基础上设计额外分析。

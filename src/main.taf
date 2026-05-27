@@ -85,7 +85,7 @@ RUN
 set -eu
 
 FLOW_NAME="rnaseq-standard-flow"
-FLOW_VERSION="0.1.0-r1"
+FLOW_VERSION="0.1.0-r2"
 
 samples_arg="::!(--samples)samples::"
 genome_arg="::!(--genome)genome::"
@@ -576,11 +576,11 @@ chmod +x "$commands_file"
     printf 'taf-rnaseq-count-flow\t0.1.0-r1\ttaffish dependency\n'
     printf 'taf-rnaseq-de-flow\t0.1.0-r2\ttaffish dependency\n'
     printf 'taf-rnaseq-enrichment-flow\t0.1.0-r3\ttaffish dependency\n'
-    printf 'taf-rnaseq-report-flow\t0.1.0-r3\ttaffish dependency\n'
+    printf 'taf-rnaseq-report-flow\t0.1.0-r4\ttaffish dependency\n'
 } > "$versions_file"
 
 {
-    printf '%s %s runs the r1 RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
+    printf '%s %s runs the r2 RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
     printf 'The default route prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
     printf 'With --route both it also runs HISAT2 alignment, alignment-level QC, and featureCounts gene counting. Differential expression uses --de-source to choose Salmon/tximport or featureCounts counts.\n'
     printf 'The flow does not download references, gene sets, or databases at runtime. It writes all generated files under the explicit output directory.\n'
@@ -989,7 +989,7 @@ fi
 
 step_name="09_rnaseq_report"
 step_log="$logs_steps_dir/${step_name}.log"
-report_cmd="taf-rnaseq-report-flow-v0.1.0-r3 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --outdir $(sq "$report_out") --force"
+report_cmd="taf-rnaseq-report-flow-v0.1.0-r4 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --outdir $(sq "$report_out") --force"
 record_command "$step_name" "$report_cmd"
 log "START $step_name"
 if {
@@ -997,9 +997,13 @@ if {
     printf '# pre-report: collect split PNG/PDF standard plot gallery\n'
     collect_all_standard_plots
     printf '# command: %s\n' "$report_cmd"
-    [[taf: taf-rnaseq-report-flow-v0.1.0-r3 --standard-out '"$outdir"' --project-name '"$project_name"' --outdir '"$report_out"' --force ]] </dev/null
+    [[taf: taf-rnaseq-report-flow-v0.1.0-r4 --standard-out '"$outdir"' --project-name '"$project_name"' --outdir '"$report_out"' --force ]] </dev/null
     [ -s "$report_out/04_reports/rnaseq_report.html" ] || {
         printf 'ERROR: rnaseq-report-flow did not produce rnaseq_report.html\n'
+        exit 2
+    }
+    [ -s "$report_out/04_reports/report_interpretation.html" ] || {
+        printf 'ERROR: rnaseq-report-flow did not produce report_interpretation.html\n'
         exit 2
     }
 } > "$step_log" 2>&1; then
@@ -1012,6 +1016,7 @@ else
 fi
 
 [ -s "$report_out/04_reports/rnaseq_report.html" ] || fail "rnaseq-report-flow did not produce rnaseq_report.html"
+[ -s "$report_out/04_reports/report_interpretation.html" ] || fail "rnaseq-report-flow did not produce report_interpretation.html"
 
 log "START 10_collect_reports"
 if {
@@ -1020,6 +1025,7 @@ if {
     finished_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
     copy_top_report_html "$report_out/04_reports/rnaseq_report.html" "$reports_dir/rnaseq_report.html"
+    copy_top_report_html "$report_out/04_reports/report_interpretation.html" "$reports_dir/report_interpretation.html"
     copy_report_file "$report_out/04_reports/project_summary.tsv" "$reports_dir/project_summary.tsv"
     copy_report_file "$report_out/04_reports/collected_files.tsv" "$reports_dir/collected_files.tsv"
     if [ "$have_background" = yes ] && [ -s "$background_filter_report" ]; then
@@ -1086,6 +1092,7 @@ if {
         printf 'enrichment_out\t%s\n' "$enrichment_out"
         printf 'report_out\t%s\n' "$report_out"
         printf 'top_report\t%s\n' "$reports_dir/rnaseq_report.html"
+        printf 'top_interpretation\t%s\n' "$reports_dir/report_interpretation.html"
         printf 'standard_plots\t%s\n' "$standard_plot_count"
         printf 'plot_files\t%s\n' "$plot_files_file"
         printf 'plots_dir\t%s\n' "$standard_plots_dir"
@@ -1141,7 +1148,7 @@ if {
         printf '    "taf-rnaseq-count-flow": "0.1.0-r1",\n'
         printf '    "taf-rnaseq-de-flow": "0.1.0-r2",\n'
         printf '    "taf-rnaseq-enrichment-flow": "0.1.0-r3",\n'
-        printf '    "taf-rnaseq-report-flow": "0.1.0-r3"\n'
+        printf '    "taf-rnaseq-report-flow": "0.1.0-r4"\n'
         printf '  },\n'
         printf '  "outputs": {\n'
         printf '    "reference": %s,\n' "$(json_string "$ref_out")"

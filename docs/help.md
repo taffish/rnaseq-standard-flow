@@ -1,8 +1,8 @@
-rnaseq-standard-flow 0.1.0-r1
+rnaseq-standard-flow 0.1.0-r2
 
 Purpose:
-  Run the TAFFISH RNA-seq r1 standard route from FASTQ/reference inputs to a
-  static project report. The default r1 route is Salmon-first:
+  Run the TAFFISH RNA-seq r2 standard route from FASTQ/reference inputs to a
+  static project report. The default r2 route is Salmon-first:
 
     rnaseq-index-flow -> rnaseq-expression-flow -> rnaseq-de-flow
     -> rnaseq-enrichment-flow -> rnaseq-report-flow
@@ -18,8 +18,8 @@ Purpose:
   matrix instead.
 
 Detailed manuals:
-  Chinese: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r1/docs/manual.zh.md
-  English: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r1/docs/manual.en.md
+  Chinese: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r2/docs/manual.zh.md
+  English: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r2/docs/manual.en.md
   Repository: https://github.com/taffish/rnaseq-standard-flow
 
 Usage:
@@ -90,7 +90,7 @@ Main options:
 
   --indexer salmon|both
       Reference index mode passed to rnaseq-index-flow. Default: salmon.
-      The r1 standard route consumes the Salmon index. both also builds the
+      The r2 standard route consumes the Salmon index. both also builds the
       Kallisto index as part of the reference bundle.
 
   --trim
@@ -216,7 +216,7 @@ Outputs:
       rnaseq-enrichment-flow output, including ORA/GSEA tables and plots.
 
   <outdir>/03_results/report/
-      Full rnaseq-report-flow r3 collector output.
+      Full rnaseq-report-flow r4 collector output.
 
   <outdir>/03_results/plots/
       Standard-flow plot collection. This includes DE r2 and enrichment r3
@@ -227,12 +227,14 @@ Outputs:
       curves.
 
   <outdir>/04_reports/
-      Top-level r3 bilingual rnaseq_report.html, commands.sh, versions.tsv,
-      methods.txt, flow_summary.tsv, subflows.tsv, collected_files.tsv,
-      plot_files.tsv, and optional enrichment_background_filter.tsv. The HTML
-      report includes workflow diagrams, active sidebar navigation,
-      deliverables/output-structure notes, linked QC/report bundles, and
-      organized DE/ORA/GSEA plot sections.
+      Top-level r4 bilingual rnaseq_report.html and report_interpretation.html,
+      commands.sh, versions.tsv, methods.txt, flow_summary.tsv, subflows.tsv,
+      collected_files.tsv, plot_files.tsv, and optional
+      enrichment_background_filter.tsv. The HTML report includes workflow
+      diagrams, active sidebar navigation, deliverables/output-structure notes,
+      linked QC/report bundles, and organized DE/ORA/GSEA plot sections. The
+      interpretation guide adds a floating contents sidebar and long-form
+      RNA-seq biology/technology explanations.
 
   <outdir>/run.manifest.json
       Standard-flow provenance manifest.
@@ -245,10 +247,10 @@ Dependencies:
   taf-rnaseq-count-flow 0.1.0-r1
   taf-rnaseq-de-flow 0.1.0-r2
   taf-rnaseq-enrichment-flow 0.1.0-r3
-  taf-rnaseq-report-flow 0.1.0-r3
+  taf-rnaseq-report-flow 0.1.0-r4
 
 Boundaries:
-  r1 is an offline umbrella flow with a default Salmon route and an explicit
+  r2 is an offline umbrella flow with a default Salmon route and an explicit
   optional HISAT2/featureCounts route. It does not download references, gene
   sets, genome databases, or annotation resources at runtime. It does not infer
   biological design, choose strandedness automatically, remove failed samples,

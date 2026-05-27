@@ -1,6 +1,6 @@
 # rnaseq-standard-flow
 
-`rnaseq-standard-flow` is the r1 TAFFISH RNA-seq umbrella flow. It composes
+`rnaseq-standard-flow` is the r2 TAFFISH RNA-seq umbrella flow. It composes
 the published RNA-seq subflows into a default Salmon-first route:
 
 1. `rnaseq-index-flow`
@@ -128,14 +128,17 @@ rnaseq-standard-out/
   run.manifest.json
 ```
 
-The top-level `04_reports/rnaseq_report.html` is copied from
-`rnaseq-report-flow` r3; the full collector output remains available under
-`03_results/report/`. The report is a branded static HTML project report with
+The top-level `04_reports/rnaseq_report.html` and
+`04_reports/report_interpretation.html` are copied from `rnaseq-report-flow`
+r4; the full collector output remains available under `03_results/report/`.
+The report is a branded static HTML project report with
 one-click English/Chinese switching, workflow sections, plot cards, table
 previews, linked QC/report HTML bundles, tool links, methods, versions, and
-provenance. The r3 report adds active sidebar navigation, static workflow
-diagrams, a deliverables/output-structure section, TAFFISH source links, and
-separate ORA/GSEA enrichment visual summaries.
+provenance. The r4 report keeps active sidebar navigation, static workflow
+diagrams, a deliverables/output-structure section, TAFFISH source links,
+separate ORA/GSEA enrichment visual summaries, server-safe Chinese rendering,
+and a companion RNA-seq interpretation guide with a floating contents sidebar
+and long-form biology/technology explanations.
 
 The top-level `03_results/plots/` directory is assembled by
 `rnaseq-standard-flow` itself before the report collector runs. It keeps PNG
@@ -161,7 +164,7 @@ The flow depends on version-pinned TAFFISH subflows:
 - `taf-rnaseq-count-flow = 0.1.0-r1`
 - `taf-rnaseq-de-flow = 0.1.0-r2`
 - `taf-rnaseq-enrichment-flow = 0.1.0-r3`
-- `taf-rnaseq-report-flow = 0.1.0-r3`
+- `taf-rnaseq-report-flow = 0.1.0-r4`
 
 Each subflow records its own tool-level dependencies in its output
 `versions.tsv`; the top-level flow merges those records into
@@ -169,7 +172,7 @@ Each subflow records its own tool-level dependencies in its output
 
 ## Scope
 
-This r1 release keeps Salmon as the default because it is lighter and directly
+This r2 release keeps Salmon as the default because it is lighter and directly
 estimates transcript abundance before gene-level summarization. The optional
 `--route both` branch adds splice-aware genome alignment, BAM-level QC, and
 featureCounts gene counting for users who need alignments, alignment QC
@@ -180,7 +183,7 @@ the default Salmon DE input. `--route both --de-source featurecounts` switches
 the DE input to featureCounts. The flow records the chosen route and count
 source in `flow_summary.tsv`, `commands.sh`, and `run.manifest.json`.
 
-The flow can build a Kallisto index with `--indexer both`, but r1 still uses
+The flow can build a Kallisto index with `--indexer both`, but r2 still uses
 Salmon for expression quantification. It does not infer strandedness or
 biological design automatically; set `--library-type`, `--rna-strandness`,
 `--count-strand`, and `--sequencing-protocol` according to the library
