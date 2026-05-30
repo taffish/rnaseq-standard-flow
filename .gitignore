@@ -4,4 +4,7 @@
 .DS_Store
 release.md
 .taf-*/
-tests/test-real-run-out/
+target/*
+!target/.gitkeep
+tests/test-real-denovo-inputs/
+tests/test-real-run-out*/

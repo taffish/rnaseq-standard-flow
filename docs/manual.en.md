@@ -10,7 +10,8 @@ This manual is written for:
 
 ## 1. What This Flow Does
 
-The default route is Salmon-first:
+Version `0.2.0-r1` keeps the reference / Salmon-first route as the default
+and remains compatible with the previous reference command line:
 
 ```text
 FASTQ + genome + annotation + metadata + GMT
@@ -31,6 +32,27 @@ rnaseq-index-flow --genome-indexer hisat2
 ```
 
 By default, differential expression uses the Salmon/tximport gene-level count matrix. With `--route both --de-source featurecounts`, differential expression uses the featureCounts gene count matrix from the alignment/count branch.
+
+With explicit `--mode denovo`, the flow runs the no-reference route:
+
+```text
+FASTQ + metadata + local protein FASTA + protein-to-GO map
+-> rnaseq-denovo-assembly-flow
+-> rnaseq-denovo-expression-flow
+-> rnaseq-denovo-annotation-flow
+-> rnaseq-de-flow
+-> rnaseq-enrichment-flow
+-> rnaseq-report-flow
+```
+
+The de novo route is never triggered automatically by missing `--genome` or
+`--annotation`. You must select it with `--mode denovo` to avoid silently
+turning a missing reference input into a different analysis strategy.
+
+For projects that primarily use the no-reference route, also read the
+dedicated de novo manual:
+
+- `docs/manual-denovo.en.md`
 
 This flow is not a Nextflow- or Snakemake-style workflow engine. It is a TAFFISH shell-native umbrella flow: each core step is executed through an explicit, version-pinned `taf-rnaseq-*-flow` dependency, and commands, versions, logs, and results are written under one explicit output directory.
 
@@ -84,6 +106,21 @@ taf-rnaseq-standard-flow \
   --de-source featurecounts
 ```
 
+For a project without a reliable reference genome and annotation, use explicit
+de novo mode with a local protein FASTA and protein-to-GO map:
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out
+```
+
 ## 3. Preparing Inputs
 
 ### 3.1 FASTQ Sample Table
@@ -115,7 +152,7 @@ Rules:
 
 Additional columns such as `condition`, `batch`, `library_layout`, or `strandedness` are useful for review, but the formal DE design comes from `--metadata`.
 
-### 3.2 Reference Genome FASTA
+### 3.2 Reference Genome FASTA (Reference Mode)
 
 `--genome` points to a reference genome FASTA:
 
@@ -132,7 +169,7 @@ Important points:
 - If a FASTA header is `>chrI some description`, the annotation should use `chrI`.
 - For formal projects, use genome and annotation files from the same database release.
 
-### 3.3 GFF3/GTF Annotation
+### 3.3 GFF3/GTF Annotation (Reference Mode)
 
 `--annotation` accepts GFF3 or GTF. `rnaseq-index-flow` standardizes it and uses it to:
 
@@ -190,7 +227,7 @@ treated / control
 
 Positive log2 fold change means higher expression in treated samples. Negative log2 fold change means higher expression in control samples.
 
-### 3.6 GMT Gene Sets
+### 3.6 GMT Gene Sets (Reference Mode)
 
 `--gene-sets` points to an offline GMT file:
 
@@ -200,7 +237,7 @@ term_id	description	gene1	gene2	gene3
 
 The flow does not download GO, KEGG, Reactome, or any other database at runtime. Prepare the GMT file ahead of time, and make sure its gene IDs use the same ID space as the DE results.
 
-### 3.7 Background Gene Universe
+### 3.7 Background Gene Universe (Reference Mode)
 
 `--background` is optional but recommended. A common format is:
 
@@ -217,6 +254,39 @@ When a background is provided, standard-flow filters the DE significant-gene lis
 ```
 
 This helps keep enrichment tests consistent when annotation, DE results, and gene sets do not contain exactly the same set of gene IDs.
+
+### 3.8 Protein Database and GO Map for De Novo Mode
+
+`--mode denovo` does not use `--genome`, `--annotation`, `--gene-sets`, or
+`--background`. It requires:
+
+```text
+--protein-db proteins.faa
+--go-map protein_go_map.tsv
+```
+
+`--protein-db` is a local protein FASTA. `rnaseq-denovo-annotation-flow` builds
+a local DIAMOND database from it and compares proteins predicted from assembled
+transcripts against that database.
+
+`--go-map` maps protein subject IDs to GO terms. Recommended format:
+
+```text
+subject_id	go_id	go_name	namespace
+PROT1	GO:0006412	translation	biological_process
+PROT2	GO:0005737	cytoplasm	cellular_component
+```
+
+The de novo route uses DIAMOND subject hits plus this GO map to generate:
+
+```text
+03_results/denovo_annotation/03_results/gene_sets/denovo_go.gmt
+03_results/denovo_annotation/03_results/gene_sets/denovo_background.tsv
+```
+
+Those files are then passed to the enrichment subflow. The IDs are assembled
+transcript IDs, not known reference gene IDs. Homology-transferred annotation
+is evidence, not manually curated function.
 
 ## 4. Common Run Modes
 
@@ -252,6 +322,25 @@ Use this route when:
 
 This does not mean featureCounts is universally more correct than Salmon. Salmon-first and alignment-count are different modeling routes. Choose based on project goals, sample quality, annotation quality, and delivery requirements.
 
+### 4.4 `--mode denovo`
+
+Use this route when:
+
+- the organism has no reliable reference genome;
+- a reference exists but gene annotation is poor and transcript discovery is important;
+- you need a transcriptome-level expression matrix for a non-model organism.
+
+The de novo route assembles transcripts first, then quantifies reads against
+assembled transcripts with Salmon. Differential expression uses the
+transcript-level count matrix and fixes `--gene-column transcript_id`. The
+features are assembled transcripts rather than reference genes. Downstream
+enrichment depends on the biological relevance and quality of `--protein-db`
+and `--go-map`.
+
+De novo mode cannot use `--route both` or `--de-source featurecounts`, because
+BAM alignment, featureCounts, and alignment QC require a reference genome and
+annotation.
+
 ## 5. Parameter Reference
 
 ### 5.1 Required Parameters
@@ -259,12 +348,15 @@ This does not mean featureCounts is universally more correct than Salmon. Salmon
 | Parameter | Meaning |
 | --- | --- |
 | `--samples` | FASTQ sample table. |
-| `--genome` | Reference genome FASTA. |
-| `--annotation` | GFF3/GTF annotation. |
+| `--mode` | `reference` or `denovo`. Default: `reference`, preserving previous reference-route compatibility. |
+| `--genome` | Required in reference mode; reference genome FASTA. |
+| `--annotation` | Required in reference mode; GFF3/GTF annotation. |
 | `--metadata` | DESeq2 metadata table. |
 | `--design` | DESeq2 design formula. |
 | `--contrast` | Contrast in `factor:numerator:denominator` form. |
-| `--gene-sets` | Offline GMT gene-set file. |
+| `--gene-sets` | Required in reference mode; offline GMT gene-set file. |
+| `--protein-db` | Required in denovo mode; local protein FASTA. |
+| `--go-map` | Required in denovo mode; protein subject ID to GO term TSV. |
 | `--outdir` | Dedicated output directory. Existing directories are refused by default. |
 
 ### 5.2 Main Flow Parameters
@@ -282,14 +374,33 @@ This does not mean featureCounts is universally more correct than Salmon. Salmon
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `--library-type` | `A` | Salmon library type. `A` lets Salmon infer the type. |
-| `--indexer` | `salmon` | Build `salmon` or `both` reference indexes. r2 quantification still uses Salmon. |
+| `--indexer` | `salmon` | Build `salmon` or `both` reference indexes. Reference expression quantification still uses Salmon. |
 | `--kmer` | `31` | k-mer setting for Salmon/Kallisto index construction. |
 | `--trim` | off | Run fastp trimming inside the expression subflow. |
 | `--skip-fastqc` | off | Skip FastQC inside the expression subflow. |
 | `--min-assigned-frags` | `10` | Minimum assigned fragments check for Salmon quantification. |
 | `--counts-from-abundance` | `no` | tximport gene-count handling: `no`, `scaledTPM`, `lengthScaledTPM`, or `dtuScaledTPM`. |
 
-### 5.4 Alignment, Count, and QC Parameters
+### 5.4 De Novo Parameters
+
+These parameters are used only with `--mode denovo`.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `--assembler` | `trinity` | Assembler: `trinity` or `rnaspades`. |
+| `--max-memory` | `4G` | Assembler memory limit, for example `4G` or `32G`. |
+| `--min-contig-len` | `200` | Minimum assembled transcript length retained. |
+| `--ss-lib-type` | `none` | Strand-specific library type: `none`, `F`, `R`, `FR`, or `RF`. |
+| `--no-normalize` | off | Pass Trinity `--no_normalize_reads` through assembly-flow. |
+| `--denovo-min-orf-aa` | `50` | Minimum TransDecoder ORF amino-acid length. |
+| `--denovo-evalue` | `1e-5` | DIAMOND blastp e-value cutoff. |
+| `--denovo-max-target-seqs` | `1` | Number of DIAMOND subject hits retained per predicted protein. |
+
+For real projects, set `--max-memory` according to sequencing depth and
+transcriptome complexity. `--no-normalize` is mainly for tiny tests or already
+downsampled data; it is not a universal default for production projects.
+
+### 5.5 Alignment, Count, and QC Parameters
 
 These parameters are mainly used with `--route both`.
 
@@ -306,12 +417,12 @@ These parameters are mainly used with `--route both`.
 | `--java-mem-size` | `4G` | Qualimap Java memory setting. |
 | `--sequencing-protocol` | `non-strand-specific` | Qualimap protocol: `non-strand-specific`, `strand-specific-forward`, or `strand-specific-reverse`. |
 
-### 5.5 Differential Expression Parameters
+### 5.6 Differential Expression Parameters
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `--sample-column` | `sample` | Sample column in metadata. |
-| `--gene-column` | `gene_id` | Gene column in the count matrix. |
+| `--gene-column` | `gene_id` | Reference-mode gene column in the count matrix; denovo mode fixes this to `transcript_id`. |
 | `--padj-cutoff` | `0.05` | Adjusted P-value cutoff for significant genes. |
 | `--lfc-cutoff` | `1` | Absolute log2 fold-change cutoff for significant genes. |
 | `--fit-type` | `parametric` | DESeq2 dispersion fit: `parametric`, `local`, or `mean`. |
@@ -322,7 +433,7 @@ These parameters are mainly used with `--route both`.
 | `--top-var` | `500` | Number of top variable genes used for sample-structure plots. |
 | `--top-heatmap` | `50` | Number of top genes shown in the heatmap. |
 
-### 5.6 Enrichment Parameters
+### 5.7 Enrichment Parameters
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
@@ -348,6 +459,9 @@ rnaseq-standard-out/
     alignment/
     alignment_qc/
     count/
+    denovo_assembly/
+    denovo_expression/
+    denovo_annotation/
     de/
     enrichment/
     report/
@@ -462,6 +576,7 @@ For common projects:
 - Start with the default Salmon route to confirm that FASTQ, reference, metadata, and GMT inputs line up.
 - Add `--route both` when BAM files or alignment QC are required.
 - Use `--route both --de-source featurecounts` when a classical count route is required for delivery.
+- Use explicit `--mode denovo` when no reliable reference genome/annotation is available, and prepare a local `--protein-db` plus `--go-map` carefully.
 - Provide `--background` when a reliable gene universe is available.
 - Keep `--library-type A` if you are not certain about Salmon library type.
 - Skip `--trim` if reads have already been cleaned by a trusted upstream process.
@@ -503,15 +618,33 @@ Fix: use a new output directory, or use `--force` only after confirming that rep
 
 Open the final report from `04_reports/rnaseq_report.html`, and keep the whole output tree together. The HTML subreports and plot links depend on the surrounding output directory structure.
 
+### Why de novo mode is not automatic
+
+Missing `--genome` may mean the user forgot an input, or it may mean the
+project truly lacks a reference. Automatic switching would silently change the
+analysis strategy, so `0.2.0-r1` requires explicit `--mode denovo`.
+
+### Are de novo results gene-level results?
+
+Not by default. The primary features are assembled transcript IDs. Gene-like
+or pseudo-gene matrices require a reliable transcript-to-gene or clustering
+map. The `0.2.0-r1` standard de novo route is transcript-level DE plus
+homology-derived enrichment.
+
 ## 11. Boundaries
 
 `rnaseq-standard-flow` does not:
 
-- download references, annotations, gene sets, or databases at runtime;
+- download references, annotations, gene sets, protein databases, GO maps, or other databases at runtime;
 - choose the biological design automatically;
 - infer strandedness automatically;
+- infer whether a project should use reference or de novo mode;
 - remove failed samples automatically;
 - replace a production workflow engine;
-- use Kallisto for expression quantification in r2, although it can build a Kallisto index.
+- use Kallisto for reference-mode expression quantification in `0.2.0-r1`, although it can build a Kallisto index;
+- turn assembled transcript IDs into known reference gene IDs without an explicit mapping.
+
+De novo homology annotation is evidence, not manual curation, and assembled
+transcript IDs are not the same as known reference gene IDs.
 
 If a project needs complex batch correction, interaction models, splicing analysis, fusion detection, allele-specific expression, single-cell RNA-seq, or clinical reporting, use this flow as a reproducible baseline and design additional analyses on top of its outputs.

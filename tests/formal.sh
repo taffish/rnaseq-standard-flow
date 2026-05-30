@@ -17,6 +17,9 @@ for target_dir in \
     "$rnaseq_root/subflows/rnaseq-de-flow/target" \
     "$rnaseq_root/subflows/rnaseq-enrichment-flow/target" \
     "$rnaseq_root/subflows/rnaseq-report-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-assembly-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-expression-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-annotation-flow/target" \
     "$bio_apps_dir/tools/agat/target" \
     "$bio_apps_dir/tools/gffread/target" \
     "$bio_apps_dir/tools/salmon/target" \
@@ -30,7 +33,13 @@ for target_dir in \
     "$bio_apps_dir/tools/fastp/target" \
     "$bio_apps_dir/tools/multiqc/target" \
     "$bio_apps_dir/tools/bioconductor-rnaseq/target" \
-    "$bio_apps_dir/tools/enrichment-r/target"
+    "$bio_apps_dir/tools/enrichment-r/target" \
+    "$bio_apps_dir/tools/trinity/target" \
+    "$bio_apps_dir/tools/spades/target" \
+    "$bio_apps_dir/tools/seqkit/target" \
+    "$bio_apps_dir/tools/busco/target" \
+    "$bio_apps_dir/tools/transdecoder/target" \
+    "$bio_apps_dir/tools/diamond/target"
 do
     if [ -d "$target_dir" ]; then
         PATH="$target_dir:$PATH"
@@ -55,15 +64,19 @@ fi
 fastq_samples="$data_root/yeast-snf2-fastq-mini-v1/samples.tsv"
 genome="$data_root/yeast-reference-sgd-r64.4.1-v1/reference/genome/yeast_s288c_reference_genome_R64-4-1.fa"
 annotation="$data_root/yeast-reference-sgd-r64.4.1-v1/reference/annotation/yeast_s288c_gene_annotation_R64-4-1.gff3"
+reference_tar="$data_root/yeast-reference-sgd-r64.4.1-v1/source/S288C_reference_genome_R64-4-1_20230830.tgz"
 gene_sets_pkg="$data_root/yeast-sgd-go-gene-sets-r64.4.1-v1"
 gene_sets="$gene_sets_pkg/gene_sets/sgd_go_bp.gmt"
 background="$gene_sets_pkg/background/yeast_background_genes.tsv"
+go_terms="$gene_sets_pkg/metadata/go_terms.tsv"
 
 [ -s "$fastq_samples" ] || skip_formal "missing yeast FASTQ samples.tsv: $fastq_samples"
 [ -s "$genome" ] || skip_formal "missing yeast reference genome FASTA: $genome"
 [ -s "$annotation" ] || skip_formal "missing yeast reference GFF3 annotation: $annotation"
+[ -s "$reference_tar" ] || skip_formal "missing yeast reference source tarball: $reference_tar"
 [ -s "$gene_sets" ] || skip_formal "missing yeast SGD GO BP GMT: $gene_sets"
 [ -s "$background" ] || skip_formal "missing yeast enrichment background: $background"
+[ -s "$go_terms" ] || skip_formal "missing yeast GO terms table: $go_terms"
 
 if ! command -v taf >/dev/null 2>&1; then
     echo "formal: taf command not found in PATH." >&2
@@ -78,7 +91,10 @@ for dep in \
     taf-rnaseq-count-flow-v0.1.0-r1 \
     taf-rnaseq-de-flow-v0.1.0-r2 \
     taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.1.0-r4
+    taf-rnaseq-report-flow-v0.2.0-r1 \
+    taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 \
+    taf-rnaseq-denovo-expression-flow-v0.1.0-r1 \
+    taf-rnaseq-denovo-annotation-flow-v0.1.0-r1
 do
     if ! command -v "$dep" >/dev/null 2>&1; then
         echo "formal: dependency wrapper not found in PATH: $dep" >&2
@@ -89,6 +105,10 @@ done
 tmpdir=$(mktemp -d "$project_dir/.taf-formal.XXXXXX")
 cleanup() {
     cd "$project_dir" 2>/dev/null || :
+    if [ "${KEEP_TAF_TEST_TMP:-false}" = true ]; then
+        echo "formal: keeping temporary directory: $tmpdir" >&2
+        return
+    fi
     rm -rf "$tmpdir"
 }
 trap cleanup EXIT INT TERM HUP
@@ -101,7 +121,7 @@ taf check
 echo "[FORMAL] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.1.0-r2"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r1"
 if [ ! -x "$flow_cmd" ]; then
     echo "formal: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -253,6 +273,7 @@ do
 done
 
 grep -F 'sample_count	4' "$out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'mode	reference' "$out/04_reports/flow_summary.tsv" >/dev/null
 grep -F 'route	both' "$out/04_reports/flow_summary.tsv" >/dev/null
 grep -F 'de_source	featurecounts' "$out/04_reports/flow_summary.tsv" >/dev/null
 grep -F 'standard_plots	28' "$out/04_reports/flow_summary.tsv" >/dev/null
@@ -269,7 +290,7 @@ grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >
 grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.1.0-r4 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'https://taffish.github.io/' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -307,6 +328,138 @@ grep -F '"de_source": "featurecounts"' "$out/run.manifest.json" >/dev/null
 
 if command -v python3 >/dev/null 2>&1; then
     python3 -m json.tool "$out/run.manifest.json" >/dev/null
+fi
+
+echo "[FORMAL] prepare yeast de novo subset"
+denovo_work="$run_dir/denovo-work"
+mkdir -p "$denovo_work/reads" "$denovo_work/resources"
+denovo_samples="$denovo_work/samples.tsv"
+denovo_metadata="$denovo_work/metadata.tsv"
+{
+    printf 'sample_id\tread1\tcondition\n'
+} > "$denovo_samples"
+{
+    printf 'sample\tcondition\n'
+} > "$denovo_metadata"
+awk -F '\t' -v OFS='\t' 'NR > 1 { print $1, $2, $3 }' "$formal_samples" |
+while IFS="$(printf '\t')" read -r sample_id read1 condition; do
+    [ -n "$sample_id" ] || continue
+    gzip -cd "$read1" | awk 'NR <= 4000 { print }' > "$denovo_work/reads/$sample_id.fq"
+    test -s "$denovo_work/reads/$sample_id.fq"
+    printf '%s\t%s\t%s\n' "$sample_id" "reads/$sample_id.fq" "$condition" >> "$denovo_samples"
+    printf '%s\t%s\n' "$sample_id" "$condition" >> "$denovo_metadata"
+done
+
+protein_db="$denovo_work/resources/sgd_orf_translations.faa"
+go_map="$denovo_work/resources/sgd_orf_go_map.tsv"
+tar -xOzf "$reference_tar" S288C_reference_genome_R64-4-1_20230830/orf_trans_all_R64-4-1_20230830.fasta.gz \
+    | gzip -cd \
+    | awk '
+        /^>/ { print; next }
+        {
+            gsub(/\*/, "")
+            gsub(/[[:space:]]/, "")
+            if ($0 != "") print
+        }
+    ' > "$protein_db"
+test -s "$protein_db"
+
+tar -xOzf "$reference_tar" S288C_reference_genome_R64-4-1_20230830/gene_association_R64-4-1_20230830.sgd.gz \
+    | gzip -cd \
+    | awk -F '\t' -v OFS='\t' -v terms="$go_terms" '
+        BEGIN {
+            while ((getline line < terms) > 0) {
+                n = split(line, t, "\t")
+                if (n < 3 || t[1] == "go_id") continue
+                go_name[t[1]] = t[2]
+                go_namespace[t[1]] = t[3]
+            }
+            close(terms)
+            print "subject_id", "go_id", "go_name", "namespace"
+        }
+        /^!/ || NF < 11 { next }
+        {
+            split($11, synonyms, "|")
+            subject = synonyms[1]
+            go = $5
+            if (subject == "" || go == "") next
+            name = (go in go_name) ? go_name[go] : go
+            namespace = (go in go_namespace) ? go_namespace[go] : $9
+            if (namespace == "P") namespace = "biological_process"
+            else if (namespace == "F") namespace = "molecular_function"
+            else if (namespace == "C") namespace = "cellular_component"
+            key = subject SUBSEP go
+            if (!(key in seen)) {
+                seen[key] = 1
+                print subject, go, name, namespace
+            }
+        }
+    ' > "$go_map"
+test -s "$go_map"
+
+echo "[FORMAL] rnaseq-standard-flow yeast de novo subset"
+(
+    cd "$denovo_work"
+    "$flow_cmd" \
+        --mode denovo \
+        --samples "$denovo_samples" \
+        --metadata "$denovo_metadata" \
+        --design '~ condition' \
+        --contrast condition:snf2_KO:WT \
+        --protein-db "$protein_db" \
+        --go-map "$go_map" \
+        --outdir "$run_dir/standard-denovo-out" \
+        --threads 2 \
+        --skip-fastqc \
+        --no-normalize \
+        --max-memory 2G \
+        --min-contig-len 100 \
+        --denovo-min-orf-aa 30 \
+        --denovo-evalue 1e-3 \
+        --denovo-max-target-seqs 1 \
+        --kmer 15 \
+        --min-assigned-frags 1 \
+        --fit-type mean \
+        --min-count 1 \
+        --min-samples 2 \
+        --padj-cutoff 1 \
+        --lfc-cutoff 0 \
+        --top-var 50 \
+        --top-heatmap 30 \
+        --enrichment-min-size 1 \
+        --enrichment-max-size 500 \
+        --enrichment-top-n 20 \
+        --project-name "Yeast SNF2 RNA-seq de novo standard formal"
+)
+
+denovo_out="$run_dir/standard-denovo-out"
+test -s "$denovo_out/03_results/denovo_assembly/03_results/transcripts/assembled_transcripts.filtered.fa"
+test -s "$denovo_out/03_results/denovo_expression/03_results/matrices/transcript_counts.tsv"
+test -s "$denovo_out/03_results/denovo_expression/03_results/matrices/transcript_tpm.tsv"
+test -s "$denovo_out/03_results/denovo_annotation/03_results/annotation/transcript_annotation.tsv"
+test -s "$denovo_out/03_results/denovo_annotation/03_results/gene_sets/denovo_go.gmt"
+test -s "$denovo_out/03_results/denovo_annotation/03_results/gene_sets/denovo_background.tsv"
+test -s "$denovo_out/03_results/de/03_results/de/results.tsv"
+test -s "$denovo_out/03_results/de/03_results/gene_lists/significant_genes.tsv"
+test -s "$denovo_out/03_results/enrichment/03_results/enrichment/ora_results.tsv"
+test -s "$denovo_out/03_results/enrichment/03_results/enrichment/gsea_results.tsv"
+test -s "$denovo_out/03_results/report/04_reports/rnaseq_report.html"
+test -s "$denovo_out/04_reports/rnaseq_report.html"
+test -s "$denovo_out/04_reports/report_interpretation.html"
+test -s "$denovo_out/04_reports/plot_files.tsv"
+test -s "$denovo_out/run.manifest.json"
+grep -F 'mode	denovo' "$denovo_out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'de_gene_column	transcript_id' "$denovo_out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'rnaseq-denovo-assembly-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'rnaseq-denovo-expression-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'rnaseq-denovo-annotation-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'denovo_present	yes' "$denovo_out/03_results/report/04_reports/project_summary.tsv" >/dev/null
+grep -F 'De novo Assembly, Expression, and Annotation' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
+grep -F 'Yeast SNF2 RNA-seq de novo standard formal' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
+grep -F '"mode": "denovo"' "$denovo_out/run.manifest.json" >/dev/null
+if command -v python3 >/dev/null 2>&1; then
+    python3 -m json.tool "$denovo_out/run.manifest.json" >/dev/null
 fi
 
 echo "[FORMAL] ok"

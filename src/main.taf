@@ -1,12 +1,16 @@
 ARGS
 <!(--samples)samples>
-<!(--genome)genome>
-<!(--annotation)annotation>
+<(--mode)mode>
+  reference
+<(--genome)genome>
+<(--annotation)annotation>
 <!(--metadata)metadata>
 <!(--design)design>
 <!(--contrast)contrast>
-<!(--gene-sets)gene-sets>
+<(--gene-sets)gene-sets>
 <(--background)background>
+<(--protein-db)protein-db>
+<(--go-map)go-map>
 <!(--outdir/-o)outdir>
 <(--threads/-t)threads>
   2
@@ -77,6 +81,20 @@ ARGS
   20
 <(--enrichment-seed)enrichment-seed>
   1
+<(--assembler)assembler>
+  trinity
+<(--max-memory)max-memory>
+  4G
+<(--min-contig-len)min-contig-len>
+  200
+<(--ss-lib-type)ss-lib-type>
+  none
+<(--denovo-min-orf-aa)denovo-min-orf-aa>
+  50
+<(--denovo-evalue)denovo-evalue>
+  1e-5
+<(--denovo-max-target-seqs)denovo-max-target-seqs>
+  1
 <(--project-name)project-name>
   RNA-seq project
 
@@ -85,16 +103,19 @@ RUN
 set -eu
 
 FLOW_NAME="rnaseq-standard-flow"
-FLOW_VERSION="0.1.0-r2"
+FLOW_VERSION="0.2.0-r1"
 
 samples_arg="::!(--samples)samples::"
-genome_arg="::!(--genome)genome::"
-annotation_arg="::!(--annotation)annotation::"
+mode="::mode::"
+genome_arg="::genome::"
+annotation_arg="::annotation::"
 metadata_arg="::!(--metadata)metadata::"
 design="::!(--design)design::"
 contrast="::!(--contrast)contrast::"
-gene_sets_arg="::!(--gene-sets)gene-sets::"
+gene_sets_arg="::gene-sets::"
 background_arg="::background::"
+protein_db_arg="::protein-db::"
+go_map_arg="::go-map::"
 outdir_arg="::!(--outdir/-o)outdir::"
 threads="::(--threads/-t)threads::"
 route="::route::"
@@ -131,12 +152,20 @@ enrichment_pvalue_cutoff="::enrichment-pvalue-cutoff::"
 enrichment_padj_method="::enrichment-padj-method::"
 enrichment_top_n="::enrichment-top-n::"
 enrichment_seed="::enrichment-seed::"
+assembler="::assembler::"
+max_memory="::max-memory::"
+min_contig_len="::min-contig-len::"
+ss_lib_type="::ss-lib-type::"
+denovo_min_orf_aa="::denovo-min-orf-aa::"
+denovo_evalue="::denovo-evalue::"
+denovo_max_target_seqs="::denovo-max-target-seqs::"
 project_name="::project-name::"
 trim_arg="::(--trim)trim?::"
 skip_fastqc_arg="::(--skip-fastqc)skip-fastqc?::"
+no_normalize_arg="::(--no-normalize)no-normalize?::"
 force_arg="::(--force)force?::"
 
-export genome_path annotation_path ref_out threads indexer genome_indexer kmer
+export mode genome_path annotation_path ref_out threads indexer genome_indexer kmer
 export samples_path salmon_index tx2gene expression_out library_type min_assigned_frags counts_from_abundance
 export route de_source hisat2_index_prefix genes_gtf alignment_out alignment_qc_out count_out
 export rna_strandness alignment_min_mapq count_strand count_feature_type count_attribute count_min_assigned_reads
@@ -146,6 +175,9 @@ export counts_file fit_type lfc_shrink coef min_count min_samples top_var top_he
 export gene_sets_path background_path enrichment_out enrichment_min_size enrichment_max_size
 export gene_list ranked_genes enrichment_pvalue_cutoff enrichment_padj_method enrichment_top_n enrichment_seed
 export outdir report_out project_name standard_plots_dir plot_files_file
+export protein_db_path go_map_path denovo_assembly_out denovo_expression_out denovo_annotation_out
+export assembler max_memory min_contig_len ss_lib_type denovo_min_orf_aa denovo_evalue denovo_max_target_seqs
+export de_gene_column assembled_transcripts
 
 flow_log=""
 
@@ -217,6 +249,7 @@ resolve_path() {
     path_value=$1
     base_dir=$2
     case "$path_value" in
+        '') printf '\n' ;;
         /*) printf '%s\n' "$path_value" ;;
         *) printf '%s/%s\n' "$base_dir" "$path_value" ;;
     esac
@@ -369,15 +402,28 @@ for core_cmd in awk basename cat chmod cp date dirname grep mkdir rm sed sh sort
     command -v "$core_cmd" >/dev/null 2>&1 || fail "missing required shell utility: $core_cmd"
 done
 
+case "$mode" in
+    reference|denovo) ;;
+    *) fail "--mode must be reference or denovo" ;;
+esac
+
 case "$route" in
     salmon|both) ;;
     *) fail "--route must be salmon or both" ;;
 esac
 
+if [ "$mode" = "denovo" ] && [ "$route" != "salmon" ]; then
+    fail "--mode denovo supports only --route salmon in r3; alignment/count evidence requires a reference genome"
+fi
+
 case "$de_source" in
     salmon|featurecounts) ;;
     *) fail "--de-source must be salmon or featurecounts" ;;
 esac
+
+if [ "$mode" = "denovo" ] && [ "$de_source" != "salmon" ]; then
+    fail "--mode denovo supports only --de-source salmon in r3; transcript-level de novo counts replace featureCounts"
+fi
 
 if [ "$de_source" = "featurecounts" ] && [ "$route" != "both" ]; then
     fail "--de-source featurecounts requires --route both"
@@ -386,6 +432,16 @@ fi
 case "$indexer" in
     salmon|both) ;;
     *) fail "--indexer must be salmon or both" ;;
+esac
+
+case "$assembler" in
+    trinity|rnaspades) ;;
+    *) fail "--assembler must be trinity or rnaspades" ;;
+esac
+
+case "$ss_lib_type" in
+    none|F|R|FR|RF) ;;
+    *) fail "--ss-lib-type must be one of: none, F, R, FR, RF" ;;
 esac
 
 case "$counts_from_abundance" in
@@ -473,6 +529,12 @@ awk -v x="$enrichment_pvalue_cutoff" 'BEGIN { exit !(x >= 0 && !(x > 1)) }' || f
 is_integer "$enrichment_top_n" || fail "--enrichment-top-n must be a positive integer"
 [ "$enrichment_top_n" -gt 0 ] || fail "--enrichment-top-n must be greater than zero"
 is_integer "$enrichment_seed" || fail "--enrichment-seed must be a non-negative integer"
+is_integer "$min_contig_len" || fail "--min-contig-len must be a positive integer"
+[ "$min_contig_len" -gt 0 ] || fail "--min-contig-len must be greater than zero"
+is_integer "$denovo_min_orf_aa" || fail "--denovo-min-orf-aa must be a positive integer"
+[ "$denovo_min_orf_aa" -gt 0 ] || fail "--denovo-min-orf-aa must be greater than zero"
+is_integer "$denovo_max_target_seqs" || fail "--denovo-max-target-seqs must be a positive integer"
+[ "$denovo_max_target_seqs" -gt 0 ] || fail "--denovo-max-target-seqs must be greater than zero"
 
 if [ "$lfc_shrink" = "apeglm" ] && [ -z "$coef" ]; then
     fail "--lfc-shrink apeglm requires --coef with a DESeq2 resultsNames(dds) value"
@@ -488,13 +550,30 @@ genome_path=$(resolve_path "$genome_arg" "$cwd")
 annotation_path=$(resolve_path "$annotation_arg" "$cwd")
 metadata_path=$(resolve_path "$metadata_arg" "$cwd")
 gene_sets_path=$(resolve_path "$gene_sets_arg" "$cwd")
+protein_db_path=$(resolve_path "$protein_db_arg" "$cwd")
+go_map_path=$(resolve_path "$go_map_arg" "$cwd")
 outdir=$(resolve_path "$outdir_arg" "$cwd")
 
 [ -r "$samples_path" ] || fail "cannot read --samples: $samples_path"
-[ -r "$genome_path" ] || fail "cannot read --genome: $genome_path"
-[ -r "$annotation_path" ] || fail "cannot read --annotation: $annotation_path"
 [ -r "$metadata_path" ] || fail "cannot read --metadata: $metadata_path"
-[ -r "$gene_sets_path" ] || fail "cannot read --gene-sets: $gene_sets_path"
+
+if [ "$mode" = "reference" ]; then
+    [ -n "$genome_path" ] || fail "--mode reference requires --genome"
+    [ -n "$annotation_path" ] || fail "--mode reference requires --annotation"
+    [ -n "$gene_sets_path" ] || fail "--mode reference requires --gene-sets"
+    [ -r "$genome_path" ] || fail "cannot read --genome: $genome_path"
+    [ -r "$annotation_path" ] || fail "cannot read --annotation: $annotation_path"
+    [ -r "$gene_sets_path" ] || fail "cannot read --gene-sets: $gene_sets_path"
+else
+    [ -z "$genome_path" ] || fail "--mode denovo does not use --genome; omit reference inputs to avoid mixing ID spaces"
+    [ -z "$annotation_path" ] || fail "--mode denovo does not use --annotation; omit reference inputs to avoid mixing ID spaces"
+    [ -z "$gene_sets_path" ] || fail "--mode denovo derives gene sets from --go-map through rnaseq-denovo-annotation-flow; omit --gene-sets in r3"
+    [ -z "$background_arg" ] || fail "--mode denovo derives background from --go-map through rnaseq-denovo-annotation-flow; omit --background in r3"
+    [ -n "$protein_db_path" ] || fail "--mode denovo requires --protein-db"
+    [ -n "$go_map_path" ] || fail "--mode denovo requires --go-map"
+    [ -r "$protein_db_path" ] || fail "cannot read --protein-db: $protein_db_path"
+    [ -r "$go_map_path" ] || fail "cannot read --go-map: $go_map_path"
+fi
 
 have_background=no
 background_path=""
@@ -506,11 +585,15 @@ fi
 
 trim_flag=false
 skip_fastqc_flag=false
+no_normalize_flag=false
 if is_true "$trim_arg"; then
     trim_flag=true
 fi
 if is_true "$skip_fastqc_arg"; then
     skip_fastqc_flag=true
+fi
+if is_true "$no_normalize_arg"; then
+    no_normalize_flag=true
 fi
 
 if [ -e "$outdir" ]; then
@@ -534,12 +617,15 @@ expression_out="$results_dir/expression"
 alignment_out="$results_dir/alignment"
 alignment_qc_out="$results_dir/alignment_qc"
 count_out="$results_dir/count"
+denovo_assembly_out="$results_dir/denovo_assembly"
+denovo_expression_out="$results_dir/denovo_expression"
+denovo_annotation_out="$results_dir/denovo_annotation"
 de_out="$results_dir/de"
 enrichment_out="$results_dir/enrichment"
 report_out="$results_dir/report"
 standard_plots_dir="$results_dir/plots"
 
-if [ "$route" = "both" ]; then
+if [ "$mode" = "reference" ] && [ "$route" = "both" ]; then
     genome_indexer="hisat2"
 else
     genome_indexer="none"
@@ -576,13 +662,17 @@ chmod +x "$commands_file"
     printf 'taf-rnaseq-count-flow\t0.1.0-r1\ttaffish dependency\n'
     printf 'taf-rnaseq-de-flow\t0.1.0-r2\ttaffish dependency\n'
     printf 'taf-rnaseq-enrichment-flow\t0.1.0-r3\ttaffish dependency\n'
-    printf 'taf-rnaseq-report-flow\t0.1.0-r4\ttaffish dependency\n'
+    printf 'taf-rnaseq-report-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-assembly-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-expression-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-annotation-flow\t0.1.0-r1\ttaffish dependency\n'
 } > "$versions_file"
 
 {
-    printf '%s %s runs the r2 RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
-    printf 'The default route prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
-    printf 'With --route both it also runs HISAT2 alignment, alignment-level QC, and featureCounts gene counting. Differential expression uses --de-source to choose Salmon/tximport or featureCounts counts.\n'
+    printf '%s %s runs the RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
+    printf 'The default --mode reference route is compatible with r2: it prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
+    printf 'With --route both in reference mode it also runs HISAT2 alignment, alignment-level QC, and featureCounts gene counting. Differential expression uses --de-source to choose Salmon/tximport or featureCounts counts.\n'
+    printf 'The explicit --mode denovo route replaces reference indexing and reference-guided quantification with de novo transcriptome assembly, transcript-level Salmon quantification, and homology-derived annotation/gene sets before DE/enrichment/report.\n'
     printf 'The flow does not download references, gene sets, or databases at runtime. It writes all generated files under the explicit output directory.\n'
 } > "$methods_file"
 
@@ -594,22 +684,37 @@ log "START 01_prepare_inputs"
 if {
     cp "$samples_path" "$inputs_dir/samples.tsv"
     cp "$metadata_path" "$inputs_dir/metadata.tsv"
-    cp "$gene_sets_path" "$inputs_dir/gene_sets.gmt"
-    if [ "$have_background" = yes ]; then
+    if [ "$mode" = "reference" ]; then
+        cp "$gene_sets_path" "$inputs_dir/gene_sets.gmt"
+    else
+        cp "$protein_db_path" "$inputs_dir/protein_db.faa"
+        cp "$go_map_path" "$inputs_dir/go_map.tsv"
+    fi
+    if [ "$mode" = "reference" ] && [ "$have_background" = yes ]; then
         cp "$background_path" "$inputs_dir/background.tsv"
     fi
     {
         printf 'role\tpath\n'
         printf 'samples\t%s\n' "$samples_path"
-        printf 'genome\t%s\n' "$genome_path"
-        printf 'annotation\t%s\n' "$annotation_path"
         printf 'metadata\t%s\n' "$metadata_path"
-        printf 'gene_sets\t%s\n' "$gene_sets_path"
-        [ "$have_background" = no ] || printf 'background\t%s\n' "$background_path"
+        printf 'mode\t%s\n' "$mode"
+        if [ "$mode" = "reference" ]; then
+            printf 'genome\t%s\n' "$genome_path"
+            printf 'annotation\t%s\n' "$annotation_path"
+            printf 'gene_sets\t%s\n' "$gene_sets_path"
+            [ "$have_background" = no ] || printf 'background\t%s\n' "$background_path"
+        else
+            printf 'protein_db\t%s\n' "$protein_db_path"
+            printf 'go_map\t%s\n' "$go_map_path"
+        fi
     } > "$inputs_dir/standard_inputs.tsv"
     sample_count=$(awk 'NR > 1 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$samples_path")
     metadata_sample_count=$(awk 'NR > 1 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$metadata_path")
-    gene_set_count=$(awk -F '\t' 'NF >= 3 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$gene_sets_path")
+    if [ "$mode" = "reference" ]; then
+        gene_set_count=$(awk -F '\t' 'NF >= 3 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$gene_sets_path")
+    else
+        gene_set_count=0
+    fi
     sample_layout_stats=$(awk -F '\t' '
         NR == 1 {
             for (i = 1; i <= NF; i++) col[$i] = i
@@ -635,10 +740,12 @@ if {
     printf 'samples\t%s\n' "$sample_count"
     printf 'metadata_samples\t%s\n' "$metadata_sample_count"
     printf 'gene_sets\t%s\n' "$gene_set_count"
+    printf 'mode\t%s\n' "$mode"
     printf 'route\t%s\n' "$route"
     printf 'de_source\t%s\n' "$de_source"
     printf 'trim\t%s\n' "$trim_flag"
     printf 'skip_fastqc\t%s\n' "$skip_fastqc_flag"
+    printf 'no_normalize\t%s\n' "$no_normalize_flag"
     printf 'paired_samples\t%s\n' "$read2_present_count"
     printf 'single_end_samples\t%s\n' "$read2_absent_count"
     printf 'paired_flag\t%s\n' "$paired_flag"
@@ -650,10 +757,12 @@ if {
         printf 'ERROR: --metadata contains no sample rows\n'
         exit 2
     }
-    [ "$gene_set_count" -gt 0 ] || {
+    if [ "$mode" = "reference" ]; then
+        [ "$gene_set_count" -gt 0 ] || {
         printf 'ERROR: --gene-sets contains no GMT gene sets\n'
         exit 2
-    }
+        }
+    fi
 } > "$logs_steps_dir/01_prepare_inputs.log" 2>&1; then
     log "DONE  01_prepare_inputs"
 else
@@ -661,6 +770,7 @@ else
     exit 1
 fi
 
+if [ "$mode" = "reference" ]; then
 step_name="02_rnaseq_index"
 step_log="$logs_steps_dir/${step_name}.log"
 index_cmd="taf-rnaseq-index-flow-v0.1.0-r1 --genome $(sq "$genome_path") --annotation $(sq "$annotation_path") --outdir $(sq "$ref_out") --threads $(sq "$threads") --indexer $(sq "$indexer") --genome-indexer $(sq "$genome_indexer") --kmer $(sq "$kmer") --force"
@@ -838,11 +948,134 @@ if [ "$de_source" = "featurecounts" ]; then
 else
     counts_file="$expression_out/03_results/matrices/gene_counts.tsv"
 fi
+de_gene_column="$gene_column"
+else
+    printf 'mode=denovo; reference indexing branch skipped.\n' > "$logs_steps_dir/02_rnaseq_index.log"
+    printf 'mode=denovo; reference expression branch skipped.\n' > "$logs_steps_dir/03_rnaseq_expression.log"
+    printf 'mode=denovo; alignment branch skipped.\n' > "$logs_steps_dir/04_rnaseq_alignment.log"
+    printf 'mode=denovo; alignment QC branch skipped.\n' > "$logs_steps_dir/05_rnaseq_alignment_qc.log"
+    printf 'mode=denovo; featureCounts branch skipped.\n' > "$logs_steps_dir/06_rnaseq_count.log"
+    printf '%s\t%s\t%s\tskipped\n' "02_rnaseq_index" "rnaseq-index-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "03_rnaseq_expression" "rnaseq-expression-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "04_rnaseq_alignment" "rnaseq-alignment-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "05_rnaseq_alignment_qc" "rnaseq-alignment-qc-flow" "" >> "$subflows_file"
+    printf '%s\t%s\t%s\tskipped\n' "06_rnaseq_count" "rnaseq-count-flow" "" >> "$subflows_file"
+
+    step_name="02_rnaseq_denovo_assembly"
+    step_log="$logs_steps_dir/${step_name}.log"
+    denovo_assembly_cmd="taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples $(sq "$samples_path") --outdir $(sq "$denovo_assembly_out") --threads $(sq "$threads") --assembler $(sq "$assembler") --max-memory $(sq "$max_memory") --min-contig-len $(sq "$min_contig_len") --ss-lib-type $(sq "$ss_lib_type") --force"
+    [ "$trim_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --trim"
+    [ "$skip_fastqc_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --skip-fastqc"
+    [ "$no_normalize_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --no-normalize"
+    record_command "$step_name" "$denovo_assembly_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$denovo_assembly_cmd"
+        if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ] && [ "$no_normalize_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --no-normalize --force ]] </dev/null
+        elif [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --force ]] </dev/null
+        elif [ "$trim_flag" = true ] && [ "$no_normalize_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --no-normalize --force ]] </dev/null
+        elif [ "$skip_fastqc_flag" = true ] && [ "$no_normalize_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --no-normalize --force ]] </dev/null
+        elif [ "$trim_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --force ]] </dev/null
+        elif [ "$skip_fastqc_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --force ]] </dev/null
+        elif [ "$no_normalize_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --no-normalize --force ]] </dev/null
+        else
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --force ]] </dev/null
+        fi
+        [ -s "$denovo_assembly_out/03_results/transcripts/assembled_transcripts.filtered.fa" ] || {
+            printf 'ERROR: rnaseq-denovo-assembly-flow did not produce assembled_transcripts.filtered.fa\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-denovo-assembly-flow" "$denovo_assembly_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    assembled_transcripts="$denovo_assembly_out/03_results/transcripts/assembled_transcripts.filtered.fa"
+    [ -s "$assembled_transcripts" ] || fail "rnaseq-denovo-assembly-flow did not produce assembled_transcripts.filtered.fa"
+
+    step_name="03_rnaseq_denovo_expression"
+    step_log="$logs_steps_dir/${step_name}.log"
+    denovo_expression_cmd="taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples $(sq "$samples_path") --transcripts $(sq "$assembled_transcripts") --outdir $(sq "$denovo_expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --kmer $(sq "$kmer") --min-assigned-frags $(sq "$min_assigned_frags") --force"
+    [ "$trim_flag" = false ] || denovo_expression_cmd="$denovo_expression_cmd --trim"
+    [ "$skip_fastqc_flag" = false ] || denovo_expression_cmd="$denovo_expression_cmd --skip-fastqc"
+    record_command "$step_name" "$denovo_expression_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$denovo_expression_cmd"
+        if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --skip-fastqc --force ]] </dev/null
+        elif [ "$trim_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --force ]] </dev/null
+        elif [ "$skip_fastqc_flag" = true ]; then
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --skip-fastqc --force ]] </dev/null
+        else
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --force ]] </dev/null
+        fi
+        [ -s "$denovo_expression_out/03_results/matrices/transcript_counts.tsv" ] || {
+            printf 'ERROR: rnaseq-denovo-expression-flow did not produce transcript_counts.tsv\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-denovo-expression-flow" "$denovo_expression_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    step_name="04_rnaseq_denovo_annotation"
+    step_log="$logs_steps_dir/${step_name}.log"
+    denovo_annotation_cmd="taf-rnaseq-denovo-annotation-flow-v0.1.0-r1 --transcripts $(sq "$assembled_transcripts") --protein-db $(sq "$protein_db_path") --go-map $(sq "$go_map_path") --outdir $(sq "$denovo_annotation_out") --threads $(sq "$threads") --min-orf-aa $(sq "$denovo_min_orf_aa") --evalue $(sq "$denovo_evalue") --max-target-seqs $(sq "$denovo_max_target_seqs") --force"
+    record_command "$step_name" "$denovo_annotation_cmd"
+    log "START $step_name"
+    if {
+        printf '# step: %s\n' "$step_name"
+        printf '# command: %s\n' "$denovo_annotation_cmd"
+        [[taf: taf-rnaseq-denovo-annotation-flow-v0.1.0-r1 --transcripts '"$assembled_transcripts"' --protein-db '"$protein_db_path"' --go-map '"$go_map_path"' --outdir '"$denovo_annotation_out"' --threads '"$threads"' --min-orf-aa '"$denovo_min_orf_aa"' --evalue '"$denovo_evalue"' --max-target-seqs '"$denovo_max_target_seqs"' --force ]] </dev/null
+        [ -s "$denovo_annotation_out/03_results/gene_sets/denovo_go.gmt" ] || {
+            printf 'ERROR: rnaseq-denovo-annotation-flow did not produce denovo_go.gmt\n'
+            exit 2
+        }
+        [ -s "$denovo_annotation_out/03_results/gene_sets/denovo_background.tsv" ] || {
+            printf 'ERROR: rnaseq-denovo-annotation-flow did not produce denovo_background.tsv\n'
+            exit 2
+        }
+    } > "$step_log" 2>&1; then
+        log "DONE  $step_name"
+        printf '%s\t%s\t%s\tdone\n' "$step_name" "rnaseq-denovo-annotation-flow" "$denovo_annotation_out" >> "$subflows_file"
+    else
+        status=$?
+        log "FAIL  $step_name; see $step_log"
+        exit "$status"
+    fi
+
+    counts_file="$denovo_expression_out/03_results/matrices/transcript_counts.tsv"
+    gene_sets_path="$denovo_annotation_out/03_results/gene_sets/denovo_go.gmt"
+    background_path="$denovo_annotation_out/03_results/gene_sets/denovo_background.tsv"
+    have_background=yes
+    de_gene_column="transcript_id"
+    gene_set_count=$(awk -F '\t' 'NF >= 3 && $0 !~ /^[ \t\r]*$/ { c++ } END { print c + 0 }' "$gene_sets_path")
+    [ "$gene_set_count" -gt 0 ] || fail "rnaseq-denovo-annotation-flow did not produce non-empty denovo_go.gmt"
+fi
 [ -s "$counts_file" ] || fail "selected --de-source did not produce a readable count matrix: $de_source"
 
 step_name="07_rnaseq_de"
 step_log="$logs_steps_dir/${step_name}.log"
-de_cmd="taf-rnaseq-de-flow-v0.1.0-r2 --counts $(sq "$counts_file") --metadata $(sq "$metadata_path") --design $(sq "$design") --contrast $(sq "$contrast") --outdir $(sq "$de_out") --sample-column $(sq "$sample_column") --gene-column $(sq "$gene_column") --padj-cutoff $(sq "$padj_cutoff") --lfc-cutoff $(sq "$lfc_cutoff") --fit-type $(sq "$fit_type") --lfc-shrink $(sq "$lfc_shrink") --min-count $(sq "$min_count") --min-samples $(sq "$min_samples") --top-var $(sq "$top_var") --top-heatmap $(sq "$top_heatmap") --force"
+de_cmd="taf-rnaseq-de-flow-v0.1.0-r2 --counts $(sq "$counts_file") --metadata $(sq "$metadata_path") --design $(sq "$design") --contrast $(sq "$contrast") --outdir $(sq "$de_out") --sample-column $(sq "$sample_column") --gene-column $(sq "$de_gene_column") --padj-cutoff $(sq "$padj_cutoff") --lfc-cutoff $(sq "$lfc_cutoff") --fit-type $(sq "$fit_type") --lfc-shrink $(sq "$lfc_shrink") --min-count $(sq "$min_count") --min-samples $(sq "$min_samples") --top-var $(sq "$top_var") --top-heatmap $(sq "$top_heatmap") --force"
 [ -z "$coef" ] || de_cmd="$de_cmd --coef $(sq "$coef")"
 record_command "$step_name" "$de_cmd"
 log "START $step_name"
@@ -850,9 +1083,9 @@ if {
     printf '# step: %s\n' "$step_name"
     printf '# command: %s\n' "$de_cmd"
     if [ -n "$coef" ]; then
-        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force --coef '"$coef"' ]] </dev/null
+        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force --coef '"$coef"' ]] </dev/null
     else
-        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force ]] </dev/null
+        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force ]] </dev/null
     fi
     [ -s "$de_out/03_results/gene_lists/significant_genes.tsv" ] || {
         printf 'ERROR: rnaseq-de-flow did not produce significant_genes.tsv\n'
@@ -989,7 +1222,7 @@ fi
 
 step_name="09_rnaseq_report"
 step_log="$logs_steps_dir/${step_name}.log"
-report_cmd="taf-rnaseq-report-flow-v0.1.0-r4 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --outdir $(sq "$report_out") --force"
+report_cmd="taf-rnaseq-report-flow-v0.2.0-r1 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --analysis-mode $(sq "$mode") --analysis-route $(sq "$route") --de-source $(sq "$de_source") --outdir $(sq "$report_out") --force"
 record_command "$step_name" "$report_cmd"
 log "START $step_name"
 if {
@@ -997,7 +1230,7 @@ if {
     printf '# pre-report: collect split PNG/PDF standard plot gallery\n'
     collect_all_standard_plots
     printf '# command: %s\n' "$report_cmd"
-    [[taf: taf-rnaseq-report-flow-v0.1.0-r4 --standard-out '"$outdir"' --project-name '"$project_name"' --outdir '"$report_out"' --force ]] </dev/null
+    [[taf: taf-rnaseq-report-flow-v0.2.0-r1 --standard-out '"$outdir"' --project-name '"$project_name"' --analysis-mode '"$mode"' --analysis-route '"$route"' --de-source '"$de_source"' --outdir '"$report_out"' --force ]] </dev/null
     [ -s "$report_out/04_reports/rnaseq_report.html" ] || {
         printf 'ERROR: rnaseq-report-flow did not produce rnaseq_report.html\n'
         exit 2
@@ -1032,9 +1265,15 @@ if {
         cp "$background_filter_report" "$reports_dir/enrichment_background_filter.tsv"
     fi
 
-    append_upstream_versions "reference" "$ref_out/04_reports/versions.tsv"
-    append_upstream_versions "expression" "$expression_out/04_reports/versions.tsv"
-    if [ "$route" = "both" ]; then
+    if [ "$mode" = "reference" ]; then
+        append_upstream_versions "reference" "$ref_out/04_reports/versions.tsv"
+        append_upstream_versions "expression" "$expression_out/04_reports/versions.tsv"
+    else
+        append_upstream_versions "denovo_assembly" "$denovo_assembly_out/04_reports/versions.tsv"
+        append_upstream_versions "denovo_expression" "$denovo_expression_out/04_reports/versions.tsv"
+        append_upstream_versions "denovo_annotation" "$denovo_annotation_out/04_reports/versions.tsv"
+    fi
+    if [ "$mode" = "reference" ] && [ "$route" = "both" ]; then
         append_upstream_versions "alignment" "$alignment_out/04_reports/versions.tsv"
         append_upstream_versions "alignment_qc" "$alignment_qc_out/04_reports/versions.tsv"
         append_upstream_versions "count" "$count_out/04_reports/versions.tsv"
@@ -1043,9 +1282,15 @@ if {
     append_upstream_versions "enrichment" "$enrichment_out/04_reports/versions.tsv"
     append_upstream_versions "report" "$report_out/04_reports/versions.tsv"
 
-    append_upstream_methods "reference" "$ref_out/04_reports/methods.txt"
-    append_upstream_methods "expression" "$expression_out/04_reports/methods.txt"
-    if [ "$route" = "both" ]; then
+    if [ "$mode" = "reference" ]; then
+        append_upstream_methods "reference" "$ref_out/04_reports/methods.txt"
+        append_upstream_methods "expression" "$expression_out/04_reports/methods.txt"
+    else
+        append_upstream_methods "denovo_assembly" "$denovo_assembly_out/04_reports/methods.txt"
+        append_upstream_methods "denovo_expression" "$denovo_expression_out/04_reports/methods.txt"
+        append_upstream_methods "denovo_annotation" "$denovo_annotation_out/04_reports/methods.txt"
+    fi
+    if [ "$mode" = "reference" ] && [ "$route" = "both" ]; then
         append_upstream_methods "alignment" "$alignment_out/04_reports/methods.txt"
         append_upstream_methods "alignment_qc" "$alignment_qc_out/04_reports/methods.txt"
         append_upstream_methods "count" "$count_out/04_reports/methods.txt"
@@ -1054,9 +1299,15 @@ if {
     append_upstream_methods "enrichment" "$enrichment_out/04_reports/methods.txt"
     append_upstream_methods "report" "$report_out/04_reports/methods.txt"
 
-    append_upstream_commands "reference" "$ref_out/04_reports/commands.sh"
-    append_upstream_commands "expression" "$expression_out/04_reports/commands.sh"
-    if [ "$route" = "both" ]; then
+    if [ "$mode" = "reference" ]; then
+        append_upstream_commands "reference" "$ref_out/04_reports/commands.sh"
+        append_upstream_commands "expression" "$expression_out/04_reports/commands.sh"
+    else
+        append_upstream_commands "denovo_assembly" "$denovo_assembly_out/04_reports/commands.sh"
+        append_upstream_commands "denovo_expression" "$denovo_expression_out/04_reports/commands.sh"
+        append_upstream_commands "denovo_annotation" "$denovo_annotation_out/04_reports/commands.sh"
+    fi
+    if [ "$mode" = "reference" ] && [ "$route" = "both" ]; then
         append_upstream_commands "alignment" "$alignment_out/04_reports/commands.sh"
         append_upstream_commands "alignment_qc" "$alignment_qc_out/04_reports/commands.sh"
         append_upstream_commands "count" "$count_out/04_reports/commands.sh"
@@ -1069,6 +1320,7 @@ if {
         printf 'metric\tvalue\n'
         printf 'flow\t%s\n' "$FLOW_NAME"
         printf 'version\t%s\n' "$FLOW_VERSION"
+        printf 'mode\t%s\n' "$mode"
         printf 'route\t%s\n' "$route"
         printf 'de_source\t%s\n' "$de_source"
         printf 'project_name\t%s\n' "$project_name"
@@ -1079,15 +1331,20 @@ if {
         printf 'gene_sets\t%s\n' "$gene_set_count"
         printf 'trim\t%s\n' "$trim_flag"
         printf 'skip_fastqc\t%s\n' "$skip_fastqc_flag"
+        printf 'no_normalize\t%s\n' "$no_normalize_flag"
         printf 'indexer\t%s\n' "$indexer"
         printf 'genome_indexer\t%s\n' "$genome_indexer"
         printf 'paired_flag\t%s\n' "$paired_flag"
         printf 'counts_file\t%s\n' "$counts_file"
+        printf 'de_gene_column\t%s\n' "$de_gene_column"
         printf 'reference_out\t%s\n' "$ref_out"
         printf 'expression_out\t%s\n' "$expression_out"
         printf 'alignment_out\t%s\n' "$alignment_out"
         printf 'alignment_qc_out\t%s\n' "$alignment_qc_out"
         printf 'count_out\t%s\n' "$count_out"
+        printf 'denovo_assembly_out\t%s\n' "$denovo_assembly_out"
+        printf 'denovo_expression_out\t%s\n' "$denovo_expression_out"
+        printf 'denovo_annotation_out\t%s\n' "$denovo_annotation_out"
         printf 'de_out\t%s\n' "$de_out"
         printf 'enrichment_out\t%s\n' "$enrichment_out"
         printf 'report_out\t%s\n' "$report_out"
@@ -1102,6 +1359,7 @@ if {
         printf '{\n'
         printf '  "flow": "rnaseq-standard-flow",\n'
         printf '  "version": %s,\n' "$(json_string "$FLOW_VERSION")"
+        printf '  "mode": %s,\n' "$(json_string "$mode")"
         printf '  "route": %s,\n' "$(json_string "$route")"
         printf '  "de_source": %s,\n' "$(json_string "$de_source")"
         printf '  "project_name": %s,\n' "$(json_string "$project_name")"
@@ -1109,14 +1367,17 @@ if {
         printf '  "finished_at": %s,\n' "$(json_string "$finished_at")"
         printf '  "inputs": {\n'
         printf '    "samples": %s,\n' "$(json_string "$samples_path")"
-        printf '    "genome": %s,\n' "$(json_string "$genome_path")"
-        printf '    "annotation": %s,\n' "$(json_string "$annotation_path")"
+        printf '    "genome": %s,\n' "$(json_optional_string "$genome_path")"
+        printf '    "annotation": %s,\n' "$(json_optional_string "$annotation_path")"
         printf '    "metadata": %s,\n' "$(json_string "$metadata_path")"
-        printf '    "gene_sets": %s,\n' "$(json_string "$gene_sets_path")"
-        printf '    "background": %s\n' "$(json_optional_string "$background_path")"
+        printf '    "gene_sets": %s,\n' "$(json_optional_string "$gene_sets_path")"
+        printf '    "background": %s,\n' "$(json_optional_string "$background_path")"
+        printf '    "protein_db": %s,\n' "$(json_optional_string "$protein_db_path")"
+        printf '    "go_map": %s\n' "$(json_optional_string "$go_map_path")"
         printf '  },\n'
         printf '  "parameters": {\n'
         printf '    "threads": %s,\n' "$threads"
+        printf '    "mode": %s,\n' "$(json_string "$mode")"
         printf '    "route": %s,\n' "$(json_string "$route")"
         printf '    "de_source": %s,\n' "$(json_string "$de_source")"
         printf '    "library_type": %s,\n' "$(json_string "$library_type")"
@@ -1124,6 +1385,14 @@ if {
         printf '    "genome_indexer": %s,\n' "$(json_string "$genome_indexer")"
         printf '    "trim": %s,\n' "$trim_flag"
         printf '    "skip_fastqc": %s,\n' "$skip_fastqc_flag"
+        printf '    "no_normalize": %s,\n' "$no_normalize_flag"
+        printf '    "assembler": %s,\n' "$(json_string "$assembler")"
+        printf '    "max_memory": %s,\n' "$(json_string "$max_memory")"
+        printf '    "min_contig_len": %s,\n' "$min_contig_len"
+        printf '    "ss_lib_type": %s,\n' "$(json_string "$ss_lib_type")"
+        printf '    "denovo_min_orf_aa": %s,\n' "$denovo_min_orf_aa"
+        printf '    "denovo_evalue": %s,\n' "$(json_string "$denovo_evalue")"
+        printf '    "denovo_max_target_seqs": %s,\n' "$denovo_max_target_seqs"
         printf '    "rna_strandness": %s,\n' "$(json_string "$rna_strandness")"
         printf '    "alignment_min_mapq": %s,\n' "$alignment_min_mapq"
         printf '    "count_strand": %s,\n' "$(json_string "$count_strand")"
@@ -1137,6 +1406,7 @@ if {
         printf '    "paired": %s,\n' "$paired_flag"
         printf '    "design": %s,\n' "$(json_string "$design")"
         printf '    "contrast": %s,\n' "$(json_string "$contrast")"
+        printf '    "de_gene_column": %s,\n' "$(json_string "$de_gene_column")"
         printf '    "padj_cutoff": %s,\n' "$padj_cutoff"
         printf '    "lfc_cutoff": %s\n' "$lfc_cutoff"
         printf '  },\n'
@@ -1148,11 +1418,25 @@ if {
         printf '    "taf-rnaseq-count-flow": "0.1.0-r1",\n'
         printf '    "taf-rnaseq-de-flow": "0.1.0-r2",\n'
         printf '    "taf-rnaseq-enrichment-flow": "0.1.0-r3",\n'
-        printf '    "taf-rnaseq-report-flow": "0.1.0-r4"\n'
+        printf '    "taf-rnaseq-report-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-denovo-assembly-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-denovo-expression-flow": "0.1.0-r1",\n'
+        printf '    "taf-rnaseq-denovo-annotation-flow": "0.1.0-r1"\n'
         printf '  },\n'
         printf '  "outputs": {\n'
-        printf '    "reference": %s,\n' "$(json_string "$ref_out")"
-        printf '    "expression": %s,\n' "$(json_string "$expression_out")"
+        if [ "$mode" = "reference" ]; then
+            printf '    "reference": %s,\n' "$(json_string "$ref_out")"
+            printf '    "expression": %s,\n' "$(json_string "$expression_out")"
+            printf '    "denovo_assembly": null,\n'
+            printf '    "denovo_expression": null,\n'
+            printf '    "denovo_annotation": null,\n'
+        else
+            printf '    "reference": null,\n'
+            printf '    "expression": null,\n'
+            printf '    "denovo_assembly": %s,\n' "$(json_string "$denovo_assembly_out")"
+            printf '    "denovo_expression": %s,\n' "$(json_string "$denovo_expression_out")"
+            printf '    "denovo_annotation": %s,\n' "$(json_string "$denovo_annotation_out")"
+        fi
         printf '    "alignment": %s,\n' "$(json_both_string "$alignment_out")"
         printf '    "alignment_qc": %s,\n' "$(json_both_string "$alignment_qc_out")"
         printf '    "count": %s,\n' "$(json_both_string "$count_out")"

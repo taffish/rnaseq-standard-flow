@@ -10,7 +10,8 @@
 
 ## 1. 流程定位
 
-默认路线是轻量的 Salmon-first 路线：
+`0.2.0-r1` 默认仍是轻量的 reference / Salmon-first 路线，并兼容此前的
+reference 用法：
 
 ```text
 FASTQ + genome + annotation + metadata + GMT
@@ -31,6 +32,25 @@ rnaseq-index-flow --genome-indexer hisat2
 ```
 
 默认情况下，差异表达使用 Salmon/tximport 生成的 gene-level count matrix。使用 `--route both --de-source featurecounts` 时，差异表达改用 featureCounts 的 gene count matrix。
+
+显式指定 `--mode denovo` 时，流程进入无参路线：
+
+```text
+FASTQ + metadata + local protein FASTA + protein-to-GO map
+-> rnaseq-denovo-assembly-flow
+-> rnaseq-denovo-expression-flow
+-> rnaseq-denovo-annotation-flow
+-> rnaseq-de-flow
+-> rnaseq-enrichment-flow
+-> rnaseq-report-flow
+```
+
+无参路线不会因为用户漏传 `--genome` 或 `--annotation` 自动启动，必须显式设置
+`--mode denovo`。这可以避免把原本应该做有参分析的数据误跑成无参分析。
+
+如果项目主要使用无参路线，也建议阅读专门的无参分析手册：
+
+- `docs/manual-denovo.zh.md`
 
 这个流程不是 Nextflow 或 Snakemake 式的大型 workflow engine。它是一个 TAFFISH 风格的 shell-native umbrella flow：每个核心分析步骤都通过固定版本的 `taf-rnaseq-*-flow` 子流程执行，并把命令、版本、日志和结果集中写入一个显式输出目录。
 
@@ -84,6 +104,21 @@ taf-rnaseq-standard-flow \
   --de-source featurecounts
 ```
 
+如果没有可靠参考基因组和注释，并且已经准备好本地蛋白 FASTA 与 protein-to-GO
+映射，可以使用无参模式：
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out
+```
+
 ## 3. 输入数据准备
 
 ### 3.1 FASTQ 样本表
@@ -115,7 +150,7 @@ S2	data/S2_R1.fastq.gz	data/S2_R2.fastq.gz	treated
 
 建议额外保留 `condition`、`batch`、`library_layout`、`strandedness` 等列，便于检查和后续报告，但本 flow 的正式设计信息以 `--metadata` 为准。
 
-### 3.2 参考基因组 FASTA
+### 3.2 参考基因组 FASTA（reference 模式）
 
 `--genome` 指向参考基因组 FASTA，例如：
 
@@ -132,7 +167,7 @@ ACGT...
 - 如果 FASTA header 是 `>chrI some description`，annotation 应使用 `chrI`。
 - 不建议在正式项目中混用不同数据库版本的 genome 和 annotation。
 
-### 3.3 注释文件 GFF3/GTF
+### 3.3 注释文件 GFF3/GTF（reference 模式）
 
 `--annotation` 支持 GFF3 或 GTF。它会由 `rnaseq-index-flow` 标准化，并用于：
 
@@ -190,7 +225,7 @@ treated / control
 
 因此 log2 fold change 大于 0 表示 treated 组表达更高，小于 0 表示 control 组表达更高。
 
-### 3.6 GMT gene set 文件
+### 3.6 GMT gene set 文件（reference 模式）
 
 `--gene-sets` 指向离线 GMT 文件。格式：
 
@@ -200,7 +235,7 @@ term_id	description	gene1	gene2	gene3
 
 本 flow 不联网下载 GO、KEGG、Reactome 或其他数据库。gene set 文件必须由用户准备好，并且 gene ID 空间要和 DE 结果一致。
 
-### 3.7 background gene universe
+### 3.7 background gene universe（reference 模式）
 
 `--background` 是可选但推荐的背景基因列表。最常见格式：
 
@@ -217,6 +252,36 @@ YAL002W
 ```
 
 这样可以避免少量 annotation-only 或 gene-set-only ID 破坏 enrichment 的背景一致性。
+
+### 3.8 无参模式的蛋白数据库和 GO 映射
+
+`--mode denovo` 不需要 `--genome`、`--annotation`、`--gene-sets` 或
+`--background`。它需要：
+
+```text
+--protein-db proteins.faa
+--go-map protein_go_map.tsv
+```
+
+`--protein-db` 是本地蛋白 FASTA。`rnaseq-denovo-annotation-flow` 会用它建立
+本地 DIAMOND 数据库，并把组装转录本预测出的蛋白与该数据库比对。
+
+`--go-map` 是 protein subject ID 到 GO term 的映射表，推荐格式：
+
+```text
+subject_id	go_id	go_name	namespace
+PROT1	GO:0006412	translation	biological_process
+PROT2	GO:0005737	cytoplasm	cellular_component
+```
+
+无参模式会根据 DIAMOND 命中的 subject ID 和这张 GO map 生成：
+
+```text
+03_results/denovo_annotation/03_results/gene_sets/denovo_go.gmt
+03_results/denovo_annotation/03_results/gene_sets/denovo_background.tsv
+```
+
+然后再把它们传给 enrichment 子流程。这里的 ID 是 assembled transcript ID，不是已知参考基因 ID；同源注释提供的是功能证据，不等同于人工审定注释。
 
 ## 4. 常规运行模式
 
@@ -252,6 +317,18 @@ YAL002W
 
 注意：这不是“比 Salmon 更正确”的通用结论。Salmon-first 和 alignment-count 是不同建模路线，选择应取决于项目目标、样本质量、参考注释质量和交付需求。
 
+### 4.4 `--mode denovo`
+
+适合：
+
+- 研究对象没有可靠参考基因组。
+- 有参考基因组但注释质量很差，项目更关注转录本发现和表达模式。
+- 需要为非模式物种先构建 transcriptome-level 表达矩阵。
+
+无参模式会先组装转录本，然后对 assembled transcripts 做 Salmon 定量。差异表达使用 transcript-level count matrix，并固定 `--gene-column transcript_id`。这意味着结果中的 feature 不是 reference gene，而是组装转录本。后续富集依赖 `--protein-db` 和 `--go-map` 的同源注释质量。
+
+无参模式不能使用 `--route both` 或 `--de-source featurecounts`，因为 BAM alignment、featureCounts 和 alignment QC 都需要参考基因组与注释。
+
 ## 5. 参数详解
 
 ### 5.1 必填参数
@@ -259,12 +336,15 @@ YAL002W
 | 参数 | 含义 |
 | --- | --- |
 | `--samples` | FASTQ 样本表。 |
-| `--genome` | 参考基因组 FASTA。 |
-| `--annotation` | GFF3/GTF 注释。 |
+| `--mode` | `reference` 或 `denovo`。默认 `reference`，保持此前 reference 路线兼容。 |
+| `--genome` | reference 模式必填；参考基因组 FASTA。 |
+| `--annotation` | reference 模式必填；GFF3/GTF 注释。 |
 | `--metadata` | DESeq2 metadata 表。 |
 | `--design` | DESeq2 design formula。 |
 | `--contrast` | 差异比较，格式为 `factor:numerator:denominator`。 |
-| `--gene-sets` | 离线 GMT gene set 文件。 |
+| `--gene-sets` | reference 模式必填；离线 GMT gene set 文件。 |
+| `--protein-db` | denovo 模式必填；本地蛋白 FASTA。 |
+| `--go-map` | denovo 模式必填；protein subject ID 到 GO term 的 TSV。 |
 | `--outdir` | 专用输出目录。已有目录默认拒绝。 |
 
 ### 5.2 主要流程参数
@@ -282,14 +362,31 @@ YAL002W
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
 | `--library-type` | `A` | Salmon library type。`A` 表示自动推断。 |
-| `--indexer` | `salmon` | reference 阶段建立 `salmon` 或 `both` 索引。r2 quant 仍使用 Salmon。 |
+| `--indexer` | `salmon` | reference 阶段建立 `salmon` 或 `both` 索引；reference 表达定量仍使用 Salmon。 |
 | `--kmer` | `31` | Salmon/Kallisto index k-mer 参数。 |
 | `--trim` | off | 在 expression subflow 中启用 fastp trimming。 |
 | `--skip-fastqc` | off | 跳过 expression subflow 中的 FastQC。 |
 | `--min-assigned-frags` | `10` | Salmon quant 最少 assigned fragments 检查阈值。 |
 | `--counts-from-abundance` | `no` | tximport gene count 处理方式：`no`、`scaledTPM`、`lengthScaledTPM`、`dtuScaledTPM`。 |
 
-### 5.4 alignment/count/QC 参数
+### 5.4 denovo 参数
+
+这些参数只在 `--mode denovo` 时有意义。
+
+| 参数 | 默认值 | 含义 |
+| --- | --- | --- |
+| `--assembler` | `trinity` | 组装器：`trinity` 或 `rnaspades`。 |
+| `--max-memory` | `4G` | 组装器内存限制，例如 `4G`、`32G`。 |
+| `--min-contig-len` | `200` | 保留 assembled transcript 的最小长度。 |
+| `--ss-lib-type` | `none` | strand-specific library type：`none`、`F`、`R`、`FR`、`RF`。 |
+| `--no-normalize` | off | 通过 assembly-flow 传递 Trinity `--no_normalize_reads`。 |
+| `--denovo-min-orf-aa` | `50` | TransDecoder 长 ORF 最小氨基酸长度。 |
+| `--denovo-evalue` | `1e-5` | DIAMOND blastp e-value cutoff。 |
+| `--denovo-max-target-seqs` | `1` | 每个预测蛋白保留的 DIAMOND subject hit 数。 |
+
+正式项目中，`--max-memory` 应按照测序深度和物种转录组复杂度设置；小测试可以使用较小值。`--no-normalize` 主要用于已经下采样的小数据或测试数据，不是所有真实项目的默认最佳选择。
+
+### 5.5 alignment/count/QC 参数
 
 这些参数主要在 `--route both` 时有意义。
 
@@ -306,12 +403,12 @@ YAL002W
 | `--java-mem-size` | `4G` | Qualimap Java memory 参数。 |
 | `--sequencing-protocol` | `non-strand-specific` | Qualimap 协议：`non-strand-specific`、`strand-specific-forward`、`strand-specific-reverse`。 |
 
-### 5.5 DE 参数
+### 5.6 DE 参数
 
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
 | `--sample-column` | `sample` | metadata 中的样本列。 |
-| `--gene-column` | `gene_id` | count matrix 的基因列。 |
+| `--gene-column` | `gene_id` | reference 模式 count matrix 的基因列；denovo 模式固定为 `transcript_id`。 |
 | `--padj-cutoff` | `0.05` | 显著差异基因 adjusted P-value 阈值。 |
 | `--lfc-cutoff` | `1` | 显著差异基因绝对 log2 fold change 阈值。 |
 | `--fit-type` | `parametric` | DESeq2 dispersion fit：`parametric`、`local`、`mean`。 |
@@ -322,7 +419,7 @@ YAL002W
 | `--top-var` | `500` | PCA/样本结构图中选择的 top variable genes 数。 |
 | `--top-heatmap` | `50` | heatmap 展示的 top genes 数。 |
 
-### 5.6 enrichment 参数
+### 5.7 enrichment 参数
 
 | 参数 | 默认值 | 含义 |
 | --- | --- | --- |
@@ -348,6 +445,9 @@ rnaseq-standard-out/
     alignment/
     alignment_qc/
     count/
+    denovo_assembly/
+    denovo_expression/
+    denovo_annotation/
     de/
     enrichment/
     report/
@@ -462,6 +562,7 @@ taf-rnaseq-standard-flow \
 - 默认先用 Salmon route 跑通，确认 FASTQ、reference、metadata、GMT 都能对齐。
 - 如果项目需要 BAM 或 alignment QC，再使用 `--route both`。
 - 如果交付要求 classical counts，用 `--route both --de-source featurecounts`。
+- 如果没有可靠参考基因组/注释，明确使用 `--mode denovo`，并认真准备本地 `--protein-db` 与 `--go-map`。
 - 有可靠 gene universe 时提供 `--background`。
 - 不确定 Salmon library type 时保留 `--library-type A`。
 - 已经做过外部 reads cleaning 时，可以不用 `--trim`。
@@ -503,15 +604,25 @@ taf-rnaseq-standard-flow \
 
 优先从 `04_reports/rnaseq_report.html` 打开最终报告，不要只复制单个 HTML 文件离开整个输出目录。HTML 子报告和图像链接依赖同一个 output tree。
 
+### 为什么无参模式不自动开启
+
+缺少 `--genome` 可能是用户忘记传参，也可能是真正没有参考基因组。自动切换会把错误输入悄悄变成另一种分析路线，所以 `0.2.0-r1` 要求显式写 `--mode denovo`。
+
+### 无参结果是不是 gene-level 结果
+
+默认不是。无参路线的主要 feature 是 assembled transcript ID。只有当后续提供可靠 transcript-to-gene 或 clustering 映射时，才可以构建更接近 gene/pseudo-gene 层面的矩阵。`0.2.0-r1` 的 standard denovo 路线以 transcript-level DE 和 homology-derived enrichment 为主。
+
 ## 11. 边界
 
 `rnaseq-standard-flow` 不做这些事情：
 
-- 不联网下载 reference、annotation、gene sets 或数据库。
+- 不联网下载 reference、annotation、gene sets、protein database、GO map 或其他数据库。
 - 不自动选择生物学 design。
 - 不自动判断 strandedness。
+- 不自动判断项目应该走 reference 还是 denovo。
 - 不自动删除失败样本。
 - 不替代完整生产级 workflow engine。
-- r2 可以构建 Kallisto index，但表达定量仍走 Salmon。
+- `0.2.0-r1` 可以构建 Kallisto index，但 reference 表达定量仍走 Salmon。
+- 无参同源注释是功能证据，不等同于人工审定注释；assembled transcript ID 也不等同于已知 reference gene ID。
 
 如果项目需要复杂 batch correction、多因素交互设计、splicing analysis、fusion detection、allele-specific expression、single-cell RNA-seq 或临床级报告，应在本流程输出的基础上设计额外分析。

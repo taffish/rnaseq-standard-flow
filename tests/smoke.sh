@@ -15,6 +15,9 @@ for target_dir in \
     "$rnaseq_root/subflows/rnaseq-de-flow/target" \
     "$rnaseq_root/subflows/rnaseq-enrichment-flow/target" \
     "$rnaseq_root/subflows/rnaseq-report-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-assembly-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-expression-flow/target" \
+    "$rnaseq_root/subflows/rnaseq-denovo-annotation-flow/target" \
     "$bio_apps_dir/tools/agat/target" \
     "$bio_apps_dir/tools/gffread/target" \
     "$bio_apps_dir/tools/salmon/target" \
@@ -28,7 +31,13 @@ for target_dir in \
     "$bio_apps_dir/tools/fastp/target" \
     "$bio_apps_dir/tools/multiqc/target" \
     "$bio_apps_dir/tools/bioconductor-rnaseq/target" \
-    "$bio_apps_dir/tools/enrichment-r/target"
+    "$bio_apps_dir/tools/enrichment-r/target" \
+    "$bio_apps_dir/tools/trinity/target" \
+    "$bio_apps_dir/tools/spades/target" \
+    "$bio_apps_dir/tools/seqkit/target" \
+    "$bio_apps_dir/tools/busco/target" \
+    "$bio_apps_dir/tools/transdecoder/target" \
+    "$bio_apps_dir/tools/diamond/target"
 do
     if [ -d "$target_dir" ]; then
         PATH="$target_dir:$PATH"
@@ -54,7 +63,10 @@ for dep in \
     taf-rnaseq-count-flow-v0.1.0-r1 \
     taf-rnaseq-de-flow-v0.1.0-r2 \
     taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.1.0-r4
+    taf-rnaseq-report-flow-v0.2.0-r1 \
+    taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 \
+    taf-rnaseq-denovo-expression-flow-v0.1.0-r1 \
+    taf-rnaseq-denovo-annotation-flow-v0.1.0-r1
 do
     if ! command -v "$dep" >/dev/null 2>&1; then
         echo "smoke: dependency wrapper not found in PATH: $dep" >&2
@@ -70,6 +82,10 @@ export TAF_HISTORY_MODE
 tmpdir=$(mktemp -d "$project_dir/.taf-smoke.XXXXXX")
 cleanup() {
     cd "$project_dir" 2>/dev/null || :
+    if [ "${KEEP_TAF_TEST_TMP:-false}" = true ]; then
+        echo "smoke: keeping temporary directory: $tmpdir" >&2
+        return
+    fi
     rm -rf "$tmpdir"
 }
 trap cleanup EXIT INT TERM HUP
@@ -82,7 +98,7 @@ taf check
 echo "[SMOKE] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.1.0-r2"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r1"
 if [ ! -x "$flow_cmd" ]; then
     echo "smoke: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -131,7 +147,7 @@ awk -v genome="$fixture/genome.fa" -v gff="$fixture/annotation.gff3" -v seqs="$f
             print substr(chr, i, 80) > genome
         }
     }
-'
+' </dev/null
 
 cat > "$fixture/counts_template.tsv" <<'EOF'
 gene_id	c1	c2	c3	t1	t2	t3
@@ -360,7 +376,7 @@ grep -F 'taf-rnaseq-index-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/nu
 grep -F 'taf-rnaseq-expression-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.1.0-r4 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH standard smoke' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -468,7 +484,7 @@ grep -F '06_rnaseq_count	rnaseq-count-flow' "$out/04_reports/subflows.tsv" >/dev
 grep -F 'taf-rnaseq-alignment-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.1.0-r4 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 test -s "$out/04_reports/report_interpretation.html"
 grep -F 'guide-sidebar' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F 'provided_modules	8' "$out/03_results/report/04_reports/project_summary.tsv" >/dev/null
@@ -479,7 +495,173 @@ if command -v python3 >/dev/null 2>&1; then
     python3 -m json.tool "$out/run.manifest.json" >/dev/null
 fi
 
-stray=$(find "$run_dir" -mindepth 1 -maxdepth 1 ! -name fixture ! -name standard-out -print)
+echo "[SMOKE] rnaseq-standard-flow synthetic de novo route"
+denovo_fixture="$run_dir/denovo-fixture"
+denovo_reads="$denovo_fixture/reads"
+mkdir -p "$denovo_reads" "$denovo_fixture/resources"
+awk -v samples="$denovo_fixture/samples.tsv" \
+    -v metadata="$denovo_fixture/metadata.tsv" \
+    -v protein_db="$denovo_fixture/resources/protein_db.faa" \
+    -v go_map="$denovo_fixture/resources/go_map.tsv" \
+    -v reads_dir="$denovo_reads" '
+    function qual(n,    i, q) {
+        q = ""
+        for (i = 1; i <= n; i++) q = q "I"
+        return q
+    }
+    function planned_count(t, s,    m) {
+        m = t % 4
+        if (m == 1) {
+            if (s == 1) return 160 + t * 3
+            if (s == 2) return 120 + t * 5
+            if (s == 3) return 180 + t * 2
+            if (s == 4) return 20 + t
+            if (s == 5) return 35 + t * 2
+            return 28 + t
+        }
+        if (m == 2) {
+            if (s == 1) return 30 + t
+            if (s == 2) return 25 + t * 2
+            if (s == 3) return 45 + t
+            if (s == 4) return 170 + t * 4
+            if (s == 5) return 135 + t * 3
+            return 190 + t * 2
+        }
+        if (m == 3) {
+            if (s == 1) return 70 + (t * 7) % 50
+            if (s == 2) return 90 + (t * 5) % 60
+            if (s == 3) return 60 + (t * 11) % 70
+            if (s == 4) return 75 + (t * 13) % 55
+            if (s == 5) return 85 + (t * 17) % 65
+            return 68 + (t * 19) % 75
+        }
+        if (s == 1) return 200 + (t * 11) % 200
+        if (s == 2) return 90 + (t * 7) % 90
+        if (s == 3) return 140 + (t * 13) % 160
+        if (s == 4) return 100 + (t * 5) % 100
+        if (s == 5) return 210 + (t * 17) % 180
+        return 50 + (t * 19) % 120
+    }
+    END {
+        split("GCT GAA CAA TTT GAT TGT GGT CAT ATT AAA CTG ATG AAT CCT CAG CGT TCT ACT GTT TGG TAC", codons, " ")
+        split("A E Q F D C G H I K L M N P Q R S T V W Y", aas, " ")
+        print "sample_id\tread1\tcondition" > samples
+        print "sample\tcondition" > metadata
+        print "subject_id\tgo_id\tgo_name\tnamespace" > go_map
+        sid[1] = "c1"; sid[2] = "c2"; sid[3] = "c3"; sid[4] = "t1"; sid[5] = "t2"; sid[6] = "t3"
+        cond[1] = "control"; cond[2] = "control"; cond[3] = "control"; cond[4] = "treated"; cond[5] = "treated"; cond[6] = "treated"
+        for (s = 1; s <= 6; s++) {
+            fq[s] = reads_dir "/" sid[s] ".fq"
+            print sid[s] "\treads/" sid[s] ".fq\t" cond[s] > samples
+            print sid[s] "\t" cond[s] > metadata
+        }
+        for (t = 1; t <= 40; t++) {
+            id = sprintf("tx%02d", t)
+            prot = "M"
+            dna = "ATG"
+            x = t * 7919 + 17
+            for (p = 1; p <= 120; p++) {
+                x = (x * 1103515245 + 12345) % 2147483647
+                k = (x % 21) + 1
+                dna = dna codons[k]
+                prot = prot aas[k]
+            }
+            dna = dna "TAA"
+            seq[id] = dna
+            printf ">prot%02d synthetic protein %02d\n%s\n", t, t, prot > protein_db
+            if (t <= 10) {
+                printf "prot%02d\tGO:0008150\tbiological_process\tbiological_process\n", t > go_map
+            } else if (t <= 20) {
+                printf "prot%02d\tGO:0009987\tcellular process\tbiological_process\n", t > go_map
+            } else if (t <= 30) {
+                printf "prot%02d\tGO:0004672\tprotein kinase activity\tmolecular_function\n", t > go_map
+            } else {
+                printf "prot%02d\tGO:0005575\tcellular_component\tcellular_component\n", t > go_map
+            }
+        }
+        for (t = 1; t <= 40; t++) {
+            id = sprintf("tx%02d", t)
+            len = length(seq[id])
+            read_len = (len < 75) ? len : 75
+            for (s = 1; s <= 6; s++) {
+                n = planned_count(t, s)
+                span = len - read_len + 1
+                if (span < 1) span = 1
+                for (r = 1; r <= n; r++) {
+                    start = 1 + ((r * 11 + s * 7 + t * 5) % span)
+                    read = substr(seq[id], start, read_len)
+                    printf "@%s_%s_%03d\n%s\n+\n%s\n", sid[s], id, r, read, qual(length(read)) > fq[s]
+                }
+            }
+        }
+    }
+' </dev/null
+
+(
+    cd "$run_dir"
+    "$flow_cmd" \
+        --mode denovo \
+        --samples "$denovo_fixture/samples.tsv" \
+        --metadata "$denovo_fixture/metadata.tsv" \
+        --design '~ condition' \
+        --contrast condition:treated:control \
+        --protein-db "$denovo_fixture/resources/protein_db.faa" \
+        --go-map "$denovo_fixture/resources/go_map.tsv" \
+        --outdir standard-denovo-out \
+        --threads 1 \
+        --skip-fastqc \
+        --no-normalize \
+        --max-memory 2G \
+        --min-contig-len 100 \
+        --denovo-min-orf-aa 20 \
+        --denovo-evalue 1e-3 \
+        --kmer 15 \
+        --min-assigned-frags 1 \
+        --fit-type mean \
+        --padj-cutoff 1 \
+        --lfc-cutoff 0 \
+        --min-count 1 \
+        --min-samples 2 \
+        --top-var 20 \
+        --top-heatmap 10 \
+        --enrichment-min-size 1 \
+        --enrichment-max-size 50 \
+        --enrichment-top-n 5 \
+        --project-name "TAFFISH denovo standard smoke"
+)
+
+denovo_out="$run_dir/standard-denovo-out"
+test -s "$denovo_out/03_results/denovo_assembly/03_results/transcripts/assembled_transcripts.filtered.fa"
+test -s "$denovo_out/03_results/denovo_expression/03_results/matrices/transcript_counts.tsv"
+test -s "$denovo_out/03_results/denovo_expression/03_results/matrices/transcript_tpm.tsv"
+test -s "$denovo_out/03_results/denovo_annotation/03_results/gene_sets/denovo_go.gmt"
+test -s "$denovo_out/03_results/denovo_annotation/03_results/gene_sets/denovo_background.tsv"
+test -s "$denovo_out/03_results/de/03_results/de/results.tsv"
+test -s "$denovo_out/03_results/enrichment/03_results/enrichment/ora_results.tsv"
+test -s "$denovo_out/03_results/report/04_reports/rnaseq_report.html"
+test -s "$denovo_out/04_reports/rnaseq_report.html"
+test -s "$denovo_out/04_reports/report_interpretation.html"
+test -s "$denovo_out/04_reports/plot_files.tsv"
+test -s "$denovo_out/run.manifest.json"
+grep -F 'mode	denovo' "$denovo_out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'de_gene_column	transcript_id' "$denovo_out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'standard_plots	28' "$denovo_out/04_reports/flow_summary.tsv" >/dev/null
+grep -F 'rnaseq-denovo-assembly-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'rnaseq-denovo-expression-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'rnaseq-denovo-annotation-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
+grep -F 'taf-rnaseq-denovo-assembly-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-denovo-expression-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-denovo-annotation-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F '"mode": "denovo"' "$denovo_out/run.manifest.json" >/dev/null
+grep -F 'denovo_present	yes' "$denovo_out/03_results/report/04_reports/project_summary.tsv" >/dev/null
+grep -F 'De novo Assembly, Expression, and Annotation' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
+grep -F 'TAFFISH denovo standard smoke' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
+if command -v python3 >/dev/null 2>&1; then
+    python3 -m json.tool "$denovo_out/run.manifest.json" >/dev/null
+fi
+
+stray=$(find "$run_dir" -mindepth 1 -maxdepth 1 ! -name fixture ! -name standard-out ! -name denovo-fixture ! -name standard-denovo-out -print)
 if [ -n "$stray" ]; then
     echo "smoke: flow wrote unexpected files outside outdir:" >&2
     printf '%s\n' "$stray" >&2

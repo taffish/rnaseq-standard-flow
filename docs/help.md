@@ -1,28 +1,30 @@
-rnaseq-standard-flow 0.1.0-r2
+rnaseq-standard-flow 0.2.0-r1
 
 Purpose:
-  Run the TAFFISH RNA-seq r2 standard route from FASTQ/reference inputs to a
-  static project report. The default r2 route is Salmon-first:
+  Run a TAFFISH RNA-seq standard analysis from FASTQ and local resources to
+  expression matrices, differential expression, enrichment, and a bilingual
+  static project report.
 
-    rnaseq-index-flow -> rnaseq-expression-flow -> rnaseq-de-flow
-    -> rnaseq-enrichment-flow -> rnaseq-report-flow
+Compatibility:
+  0.2.0-r1 keeps the previous reference-mode interface and behavior unchanged by default.
+  Existing reference commands that pass --samples, --genome, --annotation,
+  --metadata, --design, --contrast, --gene-sets, and --outdir continue to run
+  as the reference route.
 
-  With --route both, the flow also runs the alignment/count branch:
+Modes:
+  --mode reference
+      Default. Use genome + annotation, build reference indexes, quantify with
+      Salmon, then run DE, enrichment, and report. Optional --route both adds
+      HISAT2 alignment, alignment QC, and featureCounts counting.
 
-    rnaseq-index-flow --genome-indexer hisat2
-    -> rnaseq-alignment-flow -> rnaseq-alignment-qc-flow
-    -> rnaseq-count-flow
+  --mode denovo
+      Explicit no-reference route. Assemble a transcriptome, quantify reads
+      against assembled transcripts, transfer homology/GO evidence from local
+      protein resources, then run transcript-level DE, enrichment, and report.
+      This mode must be selected explicitly; missing --genome does not trigger
+      automatic de novo analysis.
 
-  Differential expression uses Salmon/tximport counts by default. Set
-  --route both --de-source featurecounts to run DESeq2 from the featureCounts
-  matrix instead.
-
-Detailed manuals:
-  Chinese: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r2/docs/manual.zh.md
-  English: https://github.com/taffish/rnaseq-standard-flow/blob/v0.1.0-r2/docs/manual.en.md
-  Repository: https://github.com/taffish/rnaseq-standard-flow
-
-Usage:
+Reference usage:
   taf-rnaseq-standard-flow \
     --samples samples.tsv \
     --genome genome.fa \
@@ -34,18 +36,29 @@ Usage:
     --background background.tsv \
     --outdir rnaseq-standard-out
 
-Required inputs:
+De novo usage:
+  taf-rnaseq-standard-flow \
+    --mode denovo \
+    --samples samples.tsv \
+    --metadata metadata.tsv \
+    --design '~ condition' \
+    --contrast condition:treated:control \
+    --protein-db proteins.faa \
+    --go-map protein_go_map.tsv \
+    --outdir rnaseq-denovo-standard-out
+
+Detailed manuals:
+  Chinese standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual.zh.md
+  English standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual.en.md
+  Chinese de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual-denovo.zh.md
+  English de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual-denovo.en.md
+  Repository: https://github.com/taffish/rnaseq-standard-flow
+
+Required inputs for all modes:
   --samples PATH
-      Tab-separated FASTQ sample table consumed by rnaseq-expression-flow.
-      Required columns are sample_id and read1. Optional read2 enables paired
-      reads. Relative FASTQ paths are resolved relative to this samples.tsv.
-
-  --genome PATH
-      Reference genome FASTA consumed by rnaseq-index-flow.
-
-  --annotation PATH
-      GFF3 or GTF annotation consumed by rnaseq-index-flow. Sequence IDs must
-      match the first token of the genome FASTA headers.
+      Tab-separated FASTQ sample table. Required columns are sample_id and
+      read1. Optional read2 enables paired reads. Relative FASTQ paths are
+      resolved relative to samples.tsv.
 
   --metadata PATH
       Tab-separated sample metadata consumed by rnaseq-de-flow. By default it
@@ -57,47 +70,69 @@ Required inputs:
   --contrast FACTOR:NUMERATOR:DENOMINATOR
       DESeq2 contrast, for example condition:treated:control.
 
-  --gene-sets PATH
-      Offline GMT gene-set file consumed by rnaseq-enrichment-flow.
-
   --outdir PATH, -o PATH
       Dedicated output directory. Existing directories are refused unless
       --force is set.
 
-Optional inputs:
+Reference-mode required inputs:
+  --genome PATH
+      Reference genome FASTA consumed by rnaseq-index-flow.
+
+  --annotation PATH
+      GFF3 or GTF annotation consumed by rnaseq-index-flow. Sequence IDs must
+      match the first token of genome FASTA headers.
+
+  --gene-sets PATH
+      Offline GMT gene-set file consumed by rnaseq-enrichment-flow.
+
+Reference-mode optional input:
   --background PATH
-      Optional background gene list for ORA enrichment. When provided,
-      rnaseq-standard-flow filters DE gene-list and ranked-gene inputs to this
-      background ID space before calling rnaseq-enrichment-flow, and records
-      the filtering summary in 04_reports/enrichment_background_filter.tsv.
+      Optional background gene list for ORA enrichment. When provided, the
+      flow filters DE gene-list and ranked-gene inputs to this ID space before
+      calling rnaseq-enrichment-flow and records
+      04_reports/enrichment_background_filter.tsv.
+
+De novo required inputs:
+  --protein-db PATH
+      Local protein FASTA database for rnaseq-denovo-annotation-flow DIAMOND
+      evidence. No database is downloaded.
+
+  --go-map PATH
+      TSV mapping protein subject IDs to GO terms. Header columns are
+      subject_id, go_id, and optional go_name, namespace. The de novo route
+      uses this to generate denovo_go.gmt and denovo_background.tsv.
 
 Main options:
+  --mode reference|denovo
+      Analysis mode. Default: reference.
+
   --threads INT
-      Threads for index and expression subflows. Default: 2.
+      Threads for subflows. Default: 2.
 
   --route salmon|both
-      Analysis route. Default: salmon.
-      salmon runs reference, Salmon expression, DE, enrichment, and report.
+      Reference-mode analysis route. Default: salmon.
       both also builds a HISAT2 index, aligns reads, runs alignment QC, and
-      counts genes with featureCounts.
+      counts genes with featureCounts. In 0.2.0-r1, --mode denovo supports only
+      --route salmon.
 
   --de-source salmon|featurecounts
       Count matrix used by rnaseq-de-flow. Default: salmon.
-      featurecounts requires --route both.
+      featurecounts requires --mode reference --route both. In denovo mode,
+      DE uses transcript_counts.tsv and --gene-column transcript_id.
 
+  --trim
+      Run fastp trimming inside expression or de novo subflows.
+
+  --skip-fastqc
+      Skip FastQC inside expression or de novo subflows.
+
+Reference expression options:
   --library-type TEXT
-      Salmon library type passed to rnaseq-expression-flow. Default: A.
+      Salmon library type. Default: A.
 
   --indexer salmon|both
       Reference index mode passed to rnaseq-index-flow. Default: salmon.
-      The r2 standard route consumes the Salmon index. both also builds the
-      Kallisto index as part of the reference bundle.
-
-  --trim
-      Run fastp trimming inside rnaseq-expression-flow before Salmon.
-
-  --skip-fastqc
-      Skip FastQC inside rnaseq-expression-flow.
+      both also builds a Kallisto index; reference expression quantification still uses Salmon.
 
   --min-assigned-frags INT
       Salmon minimum assigned fragments. Default: 10.
@@ -106,28 +141,54 @@ Main options:
       tximport gene-count handling: no, scaledTPM, lengthScaledTPM, or
       dtuScaledTPM. Default: no.
 
+De novo options:
+  --assembler trinity|rnaspades
+      Assembler for rnaseq-denovo-assembly-flow. Default: trinity.
+
+  --max-memory SIZE
+      Assembler memory limit, for example 4G or 32G. Default: 4G.
+
+  --min-contig-len INT
+      Minimum assembled transcript length retained. Default: 200.
+
+  --ss-lib-type none|F|R|FR|RF
+      Strand-specific library type passed to assembly where supported.
+      Default: none.
+
+  --no-normalize
+      Add Trinity --no_normalize_reads through rnaseq-denovo-assembly-flow.
+      Useful for tiny tests and pre-downsampled datasets.
+
+  --denovo-min-orf-aa INT
+      Minimum ORF amino-acid length for TransDecoder. Default: 50.
+
+  --denovo-evalue VALUE
+      DIAMOND blastp e-value threshold. Default: 1e-5.
+
+  --denovo-max-target-seqs INT
+      Maximum DIAMOND target sequences kept per predicted protein. Default: 1.
+
 Alignment/count route options:
   --rna-strandness none|F|R|FR|RF
-      HISAT2 RNA strandness passed to rnaseq-alignment-flow. Default: none.
+      HISAT2 RNA strandness. Default: none.
 
   --alignment-min-mapq INT
-      MAPQ filter passed to rnaseq-alignment-flow and rnaseq-count-flow.
-      Default: 0.
+      MAPQ filter for alignment and counting. Default: 0.
 
   --count-strand 0|1|2
-      featureCounts strand mode passed to rnaseq-count-flow. Default: 0.
+      featureCounts strand mode. Default: 0.
 
   --count-feature-type NAME
-      featureCounts feature type, usually exon. Default: exon.
+      featureCounts feature type. Default: exon.
 
   --count-attribute NAME
-      featureCounts grouping attribute, usually gene_id. Default: gene_id.
+      featureCounts grouping attribute. Default: gene_id.
 
   --count-min-assigned-reads INT
       Minimum assigned reads required by rnaseq-count-flow. Default: 0.
 
   --qc-mapq INT
-      MAPQ cutoff for RSeQC in rnaseq-alignment-qc-flow. Default: 30.
+      MAPQ cutoff for alignment QC. Default: 30.
 
   --infer-sample-size INT
       RSeQC infer_experiment.py sample size. Default: 200000.
@@ -141,8 +202,10 @@ Alignment/count route options:
 
 Differential expression options:
   --sample-column NAME         Metadata sample column. Default: sample.
-  --gene-column NAME           Count matrix gene column. Default: gene_id.
-  --padj-cutoff FLOAT          Adjusted-P cutoff for significant genes.
+  --gene-column NAME           Reference-mode count matrix ID column.
+                                Default: gene_id. Denovo mode fixes this to
+                                transcript_id.
+  --padj-cutoff FLOAT          Adjusted-P cutoff for significant features.
                                 Default: 0.05.
   --lfc-cutoff FLOAT           Absolute log2 fold-change cutoff. Default: 1.
   --fit-type TYPE              DESeq2 dispersion fit: parametric, local, mean.
@@ -151,28 +214,16 @@ Differential expression options:
   --coef NAME                  Required only for --lfc-shrink apeglm.
   --min-count INT              Minimum count filter. Default: 1.
   --min-samples INT            Minimum sample filter. Default: 2.
-  --top-var INT                Genes used for PCA selection. Default: 500.
-  --top-heatmap INT            Genes shown in heatmap. Default: 50.
+  --top-var INT                Features used for PCA selection. Default: 500.
+  --top-heatmap INT            Features shown in heatmap. Default: 50.
 
 Enrichment options:
-  --enrichment-min-size INT
-      Minimum GMT set size. Default: 2.
-
-  --enrichment-max-size INT
-      Maximum GMT set size. Default: 500.
-
-  --enrichment-pvalue-cutoff FLOAT
-      Enrichment P-value cutoff. Default: 1.
-
-  --enrichment-padj-method METHOD
-      Adjustment method: holm, hochberg, hommel, bonferroni, BH, BY, fdr, or
-      none. Default: BH.
-
-  --enrichment-top-n INT
-      Number of top sets used for enrichment plots. Default: 20.
-
-  --enrichment-seed INT
-      Seed passed to enrichment-r. Default: 1.
+  --enrichment-min-size INT        Minimum GMT set size. Default: 2.
+  --enrichment-max-size INT        Maximum GMT set size. Default: 500.
+  --enrichment-pvalue-cutoff FLOAT Enrichment P-value cutoff. Default: 1.
+  --enrichment-padj-method METHOD  Adjustment method. Default: BH.
+  --enrichment-top-n INT           Top sets used for plots. Default: 20.
+  --enrichment-seed INT            Seed passed to enrichment-r. Default: 1.
 
 Report options:
   --project-name TEXT
@@ -183,58 +234,48 @@ Report options:
 
 Outputs:
   <outdir>/00_inputs/
-      Snapshots of small input tables and standard_inputs.tsv.
+      Input table/resource snapshots and standard_inputs.tsv.
 
   <outdir>/01_logs/
       Flow log and per-step logs for each subflow call.
 
   <outdir>/03_results/reference/
-      rnaseq-index-flow output, including Salmon index and tx2gene.tsv.
-
   <outdir>/03_results/expression/
-      rnaseq-expression-flow output, including Salmon quant files and gene
-      expression matrices.
+      Reference-mode rnaseq-index-flow and rnaseq-expression-flow outputs.
 
   <outdir>/03_results/alignment/
-      Optional rnaseq-alignment-flow output when --route both is used,
-      including sorted BAM files and bam_files.tsv.
-
   <outdir>/03_results/alignment_qc/
-      Optional rnaseq-alignment-qc-flow output when --route both is used,
-      including SAMtools/RSeQC/Qualimap summaries.
-
   <outdir>/03_results/count/
-      Optional rnaseq-count-flow output when --route both is used, including
-      featureCounts results and gene_counts.tsv.
+      Optional reference-mode alignment/count branch outputs when
+      --route both is used.
+
+  <outdir>/03_results/denovo_assembly/
+  <outdir>/03_results/denovo_expression/
+  <outdir>/03_results/denovo_annotation/
+      De novo mode outputs: assembled transcriptome, transcript count/TPM
+      matrices, homology annotation, denovo_go.gmt, and denovo background.
 
   <outdir>/03_results/de/
-      rnaseq-de-flow output, including DESeq2 tables, plots, and gene lists.
-      It uses Salmon counts by default, or featureCounts counts when
-      --route both --de-source featurecounts is set.
+      rnaseq-de-flow output. Reference mode uses gene-level counts by default;
+      denovo mode uses transcript-level counts.
 
   <outdir>/03_results/enrichment/
-      rnaseq-enrichment-flow output, including ORA/GSEA tables and plots.
+      rnaseq-enrichment-flow ORA/GSEA tables and plots.
 
   <outdir>/03_results/report/
-      Full rnaseq-report-flow r4 collector output.
+      Full rnaseq-report-flow 0.2.0-r1 collector output.
 
-  <outdir>/03_results/plots/
-      Standard-flow plot collection. This includes DE r2 and enrichment r3
-      plots in both PDF and PNG form, split into png/ and pdf/ subdirectories.
-      Figures include PCA, MA, volcano, DEG counts, heatmap, sample
-      correlation, expression distributions, top genes expression, and
-      enrichment dotplots, ORA barplot, GSEA NES plot, and GSEA enrichment
-      curves.
+  <outdir>/03_results/plots/png/
+  <outdir>/03_results/plots/pdf/
+      Standard-flow DE and enrichment plot collection split by format.
 
   <outdir>/04_reports/
-      Top-level r4 bilingual rnaseq_report.html and report_interpretation.html,
+      Top-level bilingual rnaseq_report.html, report_interpretation.html,
       commands.sh, versions.tsv, methods.txt, flow_summary.tsv, subflows.tsv,
       collected_files.tsv, plot_files.tsv, and optional
-      enrichment_background_filter.tsv. The HTML report includes workflow
-      diagrams, active sidebar navigation, deliverables/output-structure notes,
-      linked QC/report bundles, and organized DE/ORA/GSEA plot sections. The
-      interpretation guide adds a floating contents sidebar and long-form
-      RNA-seq biology/technology explanations.
+      enrichment_background_filter.tsv. The report receives the selected mode,
+      route, and DE count source explicitly, so overview labels distinguish
+      reference and de novo analysis correctly.
 
   <outdir>/run.manifest.json
       Standard-flow provenance manifest.
@@ -247,11 +288,20 @@ Dependencies:
   taf-rnaseq-count-flow 0.1.0-r1
   taf-rnaseq-de-flow 0.1.0-r2
   taf-rnaseq-enrichment-flow 0.1.0-r3
-  taf-rnaseq-report-flow 0.1.0-r4
+  taf-rnaseq-report-flow 0.2.0-r1
+  taf-rnaseq-denovo-assembly-flow 0.1.0-r1
+  taf-rnaseq-denovo-expression-flow 0.1.0-r1
+  taf-rnaseq-denovo-annotation-flow 0.1.0-r1
 
 Boundaries:
-  r2 is an offline umbrella flow with a default Salmon route and an explicit
-  optional HISAT2/featureCounts route. It does not download references, gene
-  sets, genome databases, or annotation resources at runtime. It does not infer
-  biological design, choose strandedness automatically, remove failed samples,
-  or replace a full production workflow engine.
+  0.2.0-r1 is an offline umbrella flow. It does not download references, gene sets,
+  protein databases, GO mappings, models, or genome resources at runtime. It
+  does not infer biological design, strandedness, or whether a project should
+  be reference-based or de novo. De novo transcript IDs are assembled
+  transcript features, not known reference genes, and homology-derived
+  annotation is evidence rather than manually curated function.
+
+Wrapper options:
+  -h, --help       Show this help.
+  -v, --version    Show package and command version.
+  --compile        Print generated shell code instead of running it.
