@@ -96,11 +96,15 @@ De novo required inputs:
   --protein-db PATH
       Local protein FASTA database for rnaseq-denovo-annotation-flow DIAMOND
       evidence. No database is downloaded.
+      This is not sequencing output. It is an external annotation resource
+      chosen by the analyst, usually from a close annotated species or clade.
 
   --go-map PATH
       TSV mapping protein subject IDs to GO terms. Header columns are
       subject_id, go_id, and optional go_name, namespace. The de novo route
       uses this to generate denovo_go.gmt and denovo_background.tsv.
+      This is not sequencing output either. It must match --protein-db:
+      subject_id values should correspond to protein FASTA IDs hit by DIAMOND.
 
 Main options:
   --mode reference|denovo

@@ -178,6 +178,12 @@ relative to the denominator.
 `--protein-db proteins.faa` is a local protein FASTA used by
 `rnaseq-denovo-annotation-flow` for DIAMOND homology evidence.
 
+This is not sequencing output and is not usually delivered by a sequencing
+provider. It is an external protein knowledge base prepared by the analyst for
+functional annotation. For real projects, choose a high-quality protein set
+from a close, well annotated species or clade, rather than a distant or overly
+broad database that may turn homology annotation into noise.
+
 Choose a database that matches the project:
 
 - For a non-model species with a close relative, use proteins from the closest well annotated species or clade.
@@ -196,8 +202,14 @@ then `protein_go_map.tsv` should use `P12345` as `subject_id`.
 
 ### 4.5 Protein-to-GO Map
 
-`--go-map protein_go_map.tsv` maps protein subject IDs to GO terms. Recommended
-columns:
+`--go-map protein_go_map.tsv` maps protein subject IDs to GO terms.
+
+This is not sequencing output either. It is the functional mapping paired with
+`--protein-db`; `subject_id` must match the IDs DIAMOND can hit in the protein
+FASTA. The full standard-flow de novo route needs this map because enrichment
+is built from the generated GMT/background resources.
+
+Recommended columns:
 
 ```text
 subject_id	go_id	go_name	namespace
@@ -320,6 +332,8 @@ This downloads the data once:
 Yeast has an excellent reference genome, so real yeast projects should usually
 prefer reference mode. This de novo example is mainly an engineering and
 interpretation test for the no-reference route.
+
+### 8.1 Fast 2v2 Subset Test
 
 For a faster local run, select 2 WT and 2 SNF2KO samples and keep the first
 50,000 reads per sample:
@@ -453,10 +467,112 @@ yeast-denovo-standard-out/04_reports/rnaseq_report.html
 yeast-denovo-standard-out/04_reports/report_interpretation.html
 ```
 
-For a full 24-sample, 500k-read-per-sample test, use
-`$DATA/yeast-snf2-fastq-mini-v1/samples.tsv` and
-`$DATA/yeast-snf2-fastq-mini-v1/metadata.tsv` directly. Expect a much longer
-and more memory-intensive assembly step.
+### 8.2 Full 24-Sample Test
+
+For the full yeast SNF2 mini package, meaning 24 biological samples with about
+500,000 reads per sample, do not create a subset `WORK/samples.tsv` and do not
+truncate FASTQ files. To make this section directly copy-pastable, first define
+the data root, resource directory, protein DB, and GO map variables. If you
+already generated `PROTEIN_DB` and `GO_MAP` in section 8.1, you can skip the
+resource-generation commands and only confirm that the variables point to the
+existing files.
+
+Here, `DATA` points to the example data root produced by
+`rnaseq-yeast-get-data`; the FASTQ files are the read inputs. `PROTEIN_DB` and
+`GO_MAP` are annotation resources derived from the same SGD reference package
+for this tutorial. They stand in for the external protein database and GO
+mapping that a real no-reference project must prepare. Replace them with
+species-appropriate resources for real non-model analyses.
+
+```sh
+DATA="$PWD/yeast-snf2-data-v1/03_results"
+WORK="$PWD/yeast-denovo-24sample-resources"
+mkdir -p "$WORK/resources"
+
+REFERENCE_TAR="$DATA/yeast-reference-sgd-r64.4.1-v1/source/S288C_reference_genome_R64-4-1_20230830.tgz"
+GO_TERMS="$DATA/yeast-sgd-go-gene-sets-r64.4.1-v1/metadata/go_terms.tsv"
+PROTEIN_DB="$WORK/resources/yeast_orf_trans_all_R64-4-1.protein.faa"
+GO_MAP="$WORK/resources/yeast_sgd_go_map.tsv"
+
+tar -xOzf "$REFERENCE_TAR" \
+  S288C_reference_genome_R64-4-1_20230830/orf_trans_all_R64-4-1_20230830.fasta.gz \
+  | gzip -cd \
+  | awk '
+      /^>/ { print; next }
+      {
+        gsub(/\*/, "")
+        gsub(/[[:space:]]/, "")
+        if ($0 != "") print
+      }
+    ' > "$PROTEIN_DB"
+
+tar -xOzf "$REFERENCE_TAR" \
+  S288C_reference_genome_R64-4-1_20230830/gene_association_R64-4-1_20230830.sgd.gz \
+  | gzip -cd \
+  | awk -F '\t' -v OFS='\t' -v terms="$GO_TERMS" '
+      BEGIN {
+        while ((getline line < terms) > 0) {
+          n = split(line, t, "\t")
+          if (n < 3 || t[1] == "go_id") continue
+          go_name[t[1]] = t[2]
+          go_namespace[t[1]] = t[3]
+        }
+        close(terms)
+        print "subject_id", "go_id", "go_name", "namespace"
+      }
+      /^!/ || NF < 11 { next }
+      {
+        split($11, synonyms, "|")
+        subject = synonyms[1]
+        go = $5
+        if (subject == "" || go == "") next
+        name = (go in go_name) ? go_name[go] : go
+        namespace = (go in go_namespace) ? go_namespace[go] : $9
+        if (namespace == "P") namespace = "biological_process"
+        else if (namespace == "F") namespace = "molecular_function"
+        else if (namespace == "C") namespace = "cellular_component"
+        key = subject SUBSEP go
+        if (!(key in seen)) {
+          seen[key] = 1
+          print subject, go, name, namespace
+        }
+      }
+    ' > "$GO_MAP"
+```
+
+Then pass the package-level sample table and metadata table directly:
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples "$DATA/yeast-snf2-fastq-mini-v1/samples.tsv" \
+  --metadata "$DATA/yeast-snf2-fastq-mini-v1/metadata.tsv" \
+  --design '~ condition' \
+  --contrast condition:snf2_KO:WT \
+  --protein-db "$PROTEIN_DB" \
+  --go-map "$GO_MAP" \
+  --outdir yeast-denovo-standard-24sample-out \
+  --threads 8 \
+  --max-memory 32G \
+  --project-name "Yeast SNF2 RNA-seq de novo 24-sample standard"
+```
+
+This command runs the complete no-reference route on the full FASTQ package:
+
+- `rnaseq-denovo-assembly-flow`: assemble a transcriptome from all 24 samples;
+- `rnaseq-denovo-expression-flow`: quantify all 24 samples against the assembled transcripts;
+- `rnaseq-denovo-annotation-flow`: attach ORF, homology, and GO evidence using `PROTEIN_DB` and `GO_MAP`;
+- `rnaseq-de-flow`: run transcript-level DE for `snf2_KO` versus `WT`;
+- `rnaseq-enrichment-flow`: use the de novo annotation-derived GMT/background for enrichment;
+- `rnaseq-report-flow`: render the final bilingual HTML report.
+
+The full 24-sample run is much slower and more memory-intensive than the 2v2
+subset. On a server, start with at least 8 CPU threads and 32 GB memory; if
+resources allow, increase `--threads` and `--max-memory` to `16` / `64G`.
+For the full run, usually do not add `--no-normalize`; let Trinity's default
+read normalization reduce assembly pressure. If reads have already been
+cleaned by a trusted upstream process, you may add `--skip-fastqc` or leave
+`--trim` off; if you want the flow to clean reads internally, add `--trim`.
 
 ## 9. Output Layout
 

@@ -165,6 +165,10 @@ metadata 中的样本名必须和 `samples.tsv` 的 `sample_id` 一致。如果�
 `--protein-db proteins.faa` 是本地蛋白 FASTA，供 `rnaseq-denovo-annotation-flow`
 通过 DIAMOND 做同源证据搜索。
 
+它不是 FASTQ 下机数据，也不是测序公司通常直接交付的文件；它是分析者为无参功能注释
+额外准备的外部蛋白知识库。真实项目中应根据物种背景选择近缘物种或近缘类群的高质量
+蛋白集，避免用过远、过杂的数据库把同源注释变成噪声。
+
 数据库选择建议：
 
 - 非模式物种优先使用近缘、注释质量高的物种或类群蛋白集。
@@ -182,7 +186,13 @@ MSTNPKPQR...
 
 ### 4.5 Protein-to-GO Map
 
-`--go-map protein_go_map.tsv` 把 protein subject ID 映射到 GO term。推荐列：
+`--go-map protein_go_map.tsv` 把 protein subject ID 映射到 GO term。
+
+它也不是下机数据；它是与 `--protein-db` 配套的功能注释映射。`subject_id`
+必须对应 protein FASTA header 中 DIAMOND 会命中的 ID。当前 standard-flow 的完整
+无参路线需要这个文件，因为后续 enrichment 要使用由它生成的 GMT/background 资源。
+
+推荐列：
 
 ```text
 subject_id	go_id	go_name	namespace
@@ -294,6 +304,8 @@ DATA="$PWD/yeast-snf2-data-v1/03_results"
 
 注意：yeast 有高质量参考基因组，真实 yeast 项目通常优先使用有参路线。这里的无参示例主要用于验证无参流程的工程接口、
 报告结构和结果解释方式。
+
+### 8.1 快速 2v2 子集测试
 
 为了让本地测试更快，可以抽取 2 个 WT 和 2 个 SNF2KO 样本，并截取每个样本前 50,000 条 reads：
 
@@ -425,9 +437,105 @@ yeast-denovo-standard-out/04_reports/rnaseq_report.html
 yeast-denovo-standard-out/04_reports/report_interpretation.html
 ```
 
-如果要用全量 24 个样本和每样本 500k reads 测试，可以直接基于
-`$DATA/yeast-snf2-fastq-mini-v1/samples.tsv` 和
-`$DATA/yeast-snf2-fastq-mini-v1/metadata.tsv` 运行；但无参组装会明显更耗时、耗内存。
+### 8.2 全量 24 样本测试
+
+如果要用完整 yeast SNF2 mini 数据包，也就是 24 个生物样本、每个样本约 500,000 条 reads，
+不需要构造 `WORK/samples.tsv` 或截断 FASTQ。为了让这一节可以直接复制运行，先准备
+数据根、资源目录、protein DB 和 GO map 变量。若已经按 8.1 生成过 `PROTEIN_DB` 和
+`GO_MAP`，可以跳过重复生成，只确认这些变量指向现有文件。
+
+这里的 `DATA` 指向 `rnaseq-yeast-get-data` 获取的示例数据根；其中 FASTQ 是真实 reads
+输入。`PROTEIN_DB` 和 `GO_MAP` 是从同一 SGD 参考包派生出的示例注释资源，用来模拟
+真实无参项目中需要额外准备的蛋白数据库和 GO 映射。真实非模式物种项目应替换成适合
+该物种或近缘类群的资源。
+
+```sh
+DATA="$PWD/yeast-snf2-data-v1/03_results"
+WORK="$PWD/yeast-denovo-24sample-resources"
+mkdir -p "$WORK/resources"
+
+REFERENCE_TAR="$DATA/yeast-reference-sgd-r64.4.1-v1/source/S288C_reference_genome_R64-4-1_20230830.tgz"
+GO_TERMS="$DATA/yeast-sgd-go-gene-sets-r64.4.1-v1/metadata/go_terms.tsv"
+PROTEIN_DB="$WORK/resources/yeast_orf_trans_all_R64-4-1.protein.faa"
+GO_MAP="$WORK/resources/yeast_sgd_go_map.tsv"
+
+tar -xOzf "$REFERENCE_TAR" \
+  S288C_reference_genome_R64-4-1_20230830/orf_trans_all_R64-4-1_20230830.fasta.gz \
+  | gzip -cd \
+  | awk '
+      /^>/ { print; next }
+      {
+        gsub(/\*/, "")
+        gsub(/[[:space:]]/, "")
+        if ($0 != "") print
+      }
+    ' > "$PROTEIN_DB"
+
+tar -xOzf "$REFERENCE_TAR" \
+  S288C_reference_genome_R64-4-1_20230830/gene_association_R64-4-1_20230830.sgd.gz \
+  | gzip -cd \
+  | awk -F '\t' -v OFS='\t' -v terms="$GO_TERMS" '
+      BEGIN {
+        while ((getline line < terms) > 0) {
+          n = split(line, t, "\t")
+          if (n < 3 || t[1] == "go_id") continue
+          go_name[t[1]] = t[2]
+          go_namespace[t[1]] = t[3]
+        }
+        close(terms)
+        print "subject_id", "go_id", "go_name", "namespace"
+      }
+      /^!/ || NF < 11 { next }
+      {
+        split($11, synonyms, "|")
+        subject = synonyms[1]
+        go = $5
+        if (subject == "" || go == "") next
+        name = (go in go_name) ? go_name[go] : go
+        namespace = (go in go_namespace) ? go_namespace[go] : $9
+        if (namespace == "P") namespace = "biological_process"
+        else if (namespace == "F") namespace = "molecular_function"
+        else if (namespace == "C") namespace = "cellular_component"
+        key = subject SUBSEP go
+        if (!(key in seen)) {
+          seen[key] = 1
+          print subject, go, name, namespace
+        }
+      }
+    ' > "$GO_MAP"
+```
+
+然后直接把数据包自带的样本表和 metadata 传给 standard-flow：
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples "$DATA/yeast-snf2-fastq-mini-v1/samples.tsv" \
+  --metadata "$DATA/yeast-snf2-fastq-mini-v1/metadata.tsv" \
+  --design '~ condition' \
+  --contrast condition:snf2_KO:WT \
+  --protein-db "$PROTEIN_DB" \
+  --go-map "$GO_MAP" \
+  --outdir yeast-denovo-standard-24sample-out \
+  --threads 8 \
+  --max-memory 32G \
+  --project-name "Yeast SNF2 RNA-seq de novo 24-sample standard"
+```
+
+这条命令会用完整 FASTQ 数据运行：
+
+- `rnaseq-denovo-assembly-flow`：从 24 个样本组装 transcriptome；
+- `rnaseq-denovo-expression-flow`：把 24 个样本定量到 assembled transcripts；
+- `rnaseq-denovo-annotation-flow`：用 `PROTEIN_DB` 和 `GO_MAP` 做 ORF/同源/GO 注释；
+- `rnaseq-de-flow`：基于 transcript-level counts 做 `snf2_KO` vs `WT`；
+- `rnaseq-enrichment-flow`：基于无参注释生成的 GMT/background 做富集；
+- `rnaseq-report-flow`：生成最终双语 HTML 报告。
+
+全量 24 样本测试会比 2v2 子集明显更慢、也更吃内存和磁盘。建议在服务器上至少准备
+8 CPU、32 GB memory；如果资源充足，可以把 `--threads` 和 `--max-memory` 调到
+`16` / `64G`。全量测试通常不要加 `--no-normalize`，让 Trinity 默认的 read normalization
+减少组装阶段压力。若 FASTQ 已经由上游可靠清洗，可按需加 `--skip-fastqc` 或不启用 `--trim`；
+如果希望流程内清洗 reads，可以额外加 `--trim`。
 
 ## 9. 输出目录
 
