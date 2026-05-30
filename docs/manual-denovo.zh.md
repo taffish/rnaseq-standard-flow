@@ -1,6 +1,6 @@
 # rnaseq-standard-flow 无参分析手册
 
-本手册专门说明 `rnaseq-standard-flow 0.2.0-r1` 的无参路线，也就是
+本手册专门说明 `rnaseq-standard-flow 0.2.0-r2` 的无参路线，也就是
 `--mode denovo`。它面向没有可靠参考基因组、没有高质量基因注释，或者研究问题更偏向
 转录本发现的 bulk RNA-seq 项目。
 

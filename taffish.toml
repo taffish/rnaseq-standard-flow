@@ -2,7 +2,7 @@
 name = "rnaseq-standard-flow"
 kind = "flow"
 version = "0.2.0"
-release = 1
+release = 2
 license = "Apache-2.0"
 main = "src/main.taf"
 
@@ -41,4 +41,4 @@ taf-rnaseq-denovo-expression-flow = "0.1.0-r1"
 taf-rnaseq-denovo-annotation-flow = "0.1.0-r1"
 taf-rnaseq-de-flow = "0.1.0-r2"
 taf-rnaseq-enrichment-flow = "0.1.0-r3"
-taf-rnaseq-report-flow = "0.2.0-r1"
+taf-rnaseq-report-flow = "0.2.0-r2"

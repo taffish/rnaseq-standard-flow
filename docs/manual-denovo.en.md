@@ -1,7 +1,7 @@
 # rnaseq-standard-flow De Novo Analysis Manual
 
 This manual focuses on the explicit no-reference route of
-`rnaseq-standard-flow 0.2.0-r1`. It is written for projects where a reliable
+`rnaseq-standard-flow 0.2.0-r2`. It is written for projects where a reliable
 reference genome and gene annotation are missing, incomplete, or not suitable
 for the biological question.
 

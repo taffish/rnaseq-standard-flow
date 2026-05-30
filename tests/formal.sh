@@ -91,7 +91,7 @@ for dep in \
     taf-rnaseq-count-flow-v0.1.0-r1 \
     taf-rnaseq-de-flow-v0.1.0-r2 \
     taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.2.0-r1 \
+    taf-rnaseq-report-flow-v0.2.0-r2 \
     taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 \
     taf-rnaseq-denovo-expression-flow-v0.1.0-r1 \
     taf-rnaseq-denovo-annotation-flow-v0.1.0-r1
@@ -121,7 +121,7 @@ taf check
 echo "[FORMAL] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r1"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r2"
 if [ ! -x "$flow_cmd" ]; then
     echo "formal: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -290,7 +290,7 @@ grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >
 grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'https://taffish.github.io/' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -453,7 +453,7 @@ grep -F 'de_gene_column	transcript_id' "$denovo_out/04_reports/flow_summary.tsv"
 grep -F 'rnaseq-denovo-assembly-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
 grep -F 'rnaseq-denovo-expression-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
 grep -F 'rnaseq-denovo-annotation-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
 grep -F 'denovo_present	yes' "$denovo_out/03_results/report/04_reports/project_summary.tsv" >/dev/null
 grep -F 'De novo Assembly, Expression, and Annotation' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'Yeast SNF2 RNA-seq de novo standard formal' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null

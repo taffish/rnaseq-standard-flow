@@ -10,7 +10,7 @@ This manual is written for:
 
 ## 1. What This Flow Does
 
-Version `0.2.0-r1` keeps the reference / Salmon-first route as the default
+Version `0.2.0-r2` keeps the reference / Salmon-first route as the default
 and remains compatible with the previous reference command line:
 
 ```text
@@ -622,13 +622,13 @@ Open the final report from `04_reports/rnaseq_report.html`, and keep the whole o
 
 Missing `--genome` may mean the user forgot an input, or it may mean the
 project truly lacks a reference. Automatic switching would silently change the
-analysis strategy, so `0.2.0-r1` requires explicit `--mode denovo`.
+analysis strategy, so `0.2.0-r2` requires explicit `--mode denovo`.
 
 ### Are de novo results gene-level results?
 
 Not by default. The primary features are assembled transcript IDs. Gene-like
 or pseudo-gene matrices require a reliable transcript-to-gene or clustering
-map. The `0.2.0-r1` standard de novo route is transcript-level DE plus
+map. The `0.2.0-r2` standard de novo route is transcript-level DE plus
 homology-derived enrichment.
 
 ## 11. Boundaries
@@ -641,7 +641,7 @@ homology-derived enrichment.
 - infer whether a project should use reference or de novo mode;
 - remove failed samples automatically;
 - replace a production workflow engine;
-- use Kallisto for reference-mode expression quantification in `0.2.0-r1`, although it can build a Kallisto index;
+- use Kallisto for reference-mode expression quantification in `0.2.0-r2`, although it can build a Kallisto index;
 - turn assembled transcript IDs into known reference gene IDs without an explicit mapping.
 
 De novo homology annotation is evidence, not manual curation, and assembled

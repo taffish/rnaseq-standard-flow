@@ -1,4 +1,4 @@
-rnaseq-standard-flow 0.2.0-r1
+rnaseq-standard-flow 0.2.0-r2
 
 Purpose:
   Run a TAFFISH RNA-seq standard analysis from FASTQ and local resources to
@@ -6,7 +6,7 @@ Purpose:
   static project report.
 
 Compatibility:
-  0.2.0-r1 keeps the previous reference-mode interface and behavior unchanged by default.
+  0.2.0-r2 keeps the previous reference-mode interface and behavior unchanged by default.
   Existing reference commands that pass --samples, --genome, --annotation,
   --metadata, --design, --contrast, --gene-sets, and --outdir continue to run
   as the reference route.
@@ -48,10 +48,10 @@ De novo usage:
     --outdir rnaseq-denovo-standard-out
 
 Detailed manuals:
-  Chinese standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual.zh.md
-  English standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual.en.md
-  Chinese de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual-denovo.zh.md
-  English de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r1/docs/manual-denovo.en.md
+  Chinese standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r2/docs/manual.zh.md
+  English standard manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r2/docs/manual.en.md
+  Chinese de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r2/docs/manual-denovo.zh.md
+  English de novo manual: https://github.com/taffish/rnaseq-standard-flow/blob/v0.2.0-r2/docs/manual-denovo.en.md
   Repository: https://github.com/taffish/rnaseq-standard-flow
 
 Required inputs for all modes:
@@ -116,7 +116,7 @@ Main options:
   --route salmon|both
       Reference-mode analysis route. Default: salmon.
       both also builds a HISAT2 index, aligns reads, runs alignment QC, and
-      counts genes with featureCounts. In 0.2.0-r1, --mode denovo supports only
+      counts genes with featureCounts. In 0.2.0-r2, --mode denovo supports only
       --route salmon.
 
   --de-source salmon|featurecounts
@@ -267,7 +267,7 @@ Outputs:
       rnaseq-enrichment-flow ORA/GSEA tables and plots.
 
   <outdir>/03_results/report/
-      Full rnaseq-report-flow 0.2.0-r1 collector output.
+      Full rnaseq-report-flow 0.2.0-r2 collector output.
 
   <outdir>/03_results/plots/png/
   <outdir>/03_results/plots/pdf/
@@ -292,13 +292,13 @@ Dependencies:
   taf-rnaseq-count-flow 0.1.0-r1
   taf-rnaseq-de-flow 0.1.0-r2
   taf-rnaseq-enrichment-flow 0.1.0-r3
-  taf-rnaseq-report-flow 0.2.0-r1
+  taf-rnaseq-report-flow 0.2.0-r2
   taf-rnaseq-denovo-assembly-flow 0.1.0-r1
   taf-rnaseq-denovo-expression-flow 0.1.0-r1
   taf-rnaseq-denovo-annotation-flow 0.1.0-r1
 
 Boundaries:
-  0.2.0-r1 is an offline umbrella flow. It does not download references, gene sets,
+  0.2.0-r2 is an offline umbrella flow. It does not download references, gene sets,
   protein databases, GO mappings, models, or genome resources at runtime. It
   does not infer biological design, strandedness, or whether a project should
   be reference-based or de novo. De novo transcript IDs are assembled

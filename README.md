@@ -1,7 +1,7 @@
 # rnaseq-standard-flow
 
 `rnaseq-standard-flow` is the TAFFISH RNA-seq umbrella flow. Version
-`0.2.0-r1` keeps the previous reference workflow interface compatible by
+`0.2.0-r2` keeps the previous reference workflow interface compatible by
 default, and adds an explicit de novo mode for projects without a reliable
 reference genome or annotation.
 
@@ -183,11 +183,11 @@ rnaseq-standard-out/
 
 The top-level `04_reports/rnaseq_report.html` and
 `04_reports/report_interpretation.html` are copied from `rnaseq-report-flow`
-0.2.0-r1; the full collector output remains available under `03_results/report/`.
+0.2.0-r2; the full collector output remains available under `03_results/report/`.
 The report is a branded static HTML project report with one-click
 English/Chinese switching, workflow sections, plot cards, table previews,
 linked QC/report HTML bundles, tool links, methods, versions, and provenance.
-0.2.0-r1 also adds de novo-aware report sections when de novo assembly, expression,
+0.2.0-r2 also adds de novo-aware report sections when de novo assembly, expression,
 and annotation outputs are present. The standard flow passes analysis mode, route, and DE
 count source explicitly to the report step so overview metrics remain correct
 even before the final top-level standard-flow summary is written.
@@ -214,7 +214,7 @@ The flow depends on version-pinned TAFFISH subflows:
 - `taf-rnaseq-count-flow = 0.1.0-r1`
 - `taf-rnaseq-de-flow = 0.1.0-r2`
 - `taf-rnaseq-enrichment-flow = 0.1.0-r3`
-- `taf-rnaseq-report-flow = 0.2.0-r1`
+- `taf-rnaseq-report-flow = 0.2.0-r2`
 - `taf-rnaseq-denovo-assembly-flow = 0.1.0-r1`
 - `taf-rnaseq-denovo-expression-flow = 0.1.0-r1`
 - `taf-rnaseq-denovo-annotation-flow = 0.1.0-r1`

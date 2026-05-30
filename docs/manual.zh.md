@@ -10,7 +10,7 @@
 
 ## 1. 流程定位
 
-`0.2.0-r1` 默认仍是轻量的 reference / Salmon-first 路线，并兼容此前的
+`0.2.0-r2` 默认仍是轻量的 reference / Salmon-first 路线，并兼容此前的
 reference 用法：
 
 ```text
@@ -606,11 +606,11 @@ taf-rnaseq-standard-flow \
 
 ### 为什么无参模式不自动开启
 
-缺少 `--genome` 可能是用户忘记传参，也可能是真正没有参考基因组。自动切换会把错误输入悄悄变成另一种分析路线，所以 `0.2.0-r1` 要求显式写 `--mode denovo`。
+缺少 `--genome` 可能是用户忘记传参，也可能是真正没有参考基因组。自动切换会把错误输入悄悄变成另一种分析路线，所以 `0.2.0-r2` 要求显式写 `--mode denovo`。
 
 ### 无参结果是不是 gene-level 结果
 
-默认不是。无参路线的主要 feature 是 assembled transcript ID。只有当后续提供可靠 transcript-to-gene 或 clustering 映射时，才可以构建更接近 gene/pseudo-gene 层面的矩阵。`0.2.0-r1` 的 standard denovo 路线以 transcript-level DE 和 homology-derived enrichment 为主。
+默认不是。无参路线的主要 feature 是 assembled transcript ID。只有当后续提供可靠 transcript-to-gene 或 clustering 映射时，才可以构建更接近 gene/pseudo-gene 层面的矩阵。`0.2.0-r2` 的 standard denovo 路线以 transcript-level DE 和 homology-derived enrichment 为主。
 
 ## 11. 边界
 
@@ -622,7 +622,7 @@ taf-rnaseq-standard-flow \
 - 不自动判断项目应该走 reference 还是 denovo。
 - 不自动删除失败样本。
 - 不替代完整生产级 workflow engine。
-- `0.2.0-r1` 可以构建 Kallisto index，但 reference 表达定量仍走 Salmon。
+- `0.2.0-r2` 可以构建 Kallisto index，但 reference 表达定量仍走 Salmon。
 - 无参同源注释是功能证据，不等同于人工审定注释；assembled transcript ID 也不等同于已知 reference gene ID。
 
 如果项目需要复杂 batch correction、多因素交互设计、splicing analysis、fusion detection、allele-specific expression、single-cell RNA-seq 或临床级报告，应在本流程输出的基础上设计额外分析。

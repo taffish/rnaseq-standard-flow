@@ -63,7 +63,7 @@ for dep in \
     taf-rnaseq-count-flow-v0.1.0-r1 \
     taf-rnaseq-de-flow-v0.1.0-r2 \
     taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.2.0-r1 \
+    taf-rnaseq-report-flow-v0.2.0-r2 \
     taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 \
     taf-rnaseq-denovo-expression-flow-v0.1.0-r1 \
     taf-rnaseq-denovo-annotation-flow-v0.1.0-r1
@@ -98,7 +98,7 @@ taf check
 echo "[SMOKE] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r1"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r2"
 if [ ! -x "$flow_cmd" ]; then
     echo "smoke: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -376,7 +376,7 @@ grep -F 'taf-rnaseq-index-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/nu
 grep -F 'taf-rnaseq-expression-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH standard smoke' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -484,7 +484,7 @@ grep -F '06_rnaseq_count	rnaseq-count-flow' "$out/04_reports/subflows.tsv" >/dev
 grep -F 'taf-rnaseq-alignment-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 test -s "$out/04_reports/report_interpretation.html"
 grep -F 'guide-sidebar' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F 'provided_modules	8' "$out/03_results/report/04_reports/project_summary.tsv" >/dev/null
@@ -652,7 +652,7 @@ grep -F 'rnaseq-denovo-annotation-flow' "$denovo_out/04_reports/subflows.tsv" >/
 grep -F 'taf-rnaseq-denovo-assembly-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-denovo-expression-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
 grep -F 'taf-rnaseq-denovo-annotation-flow-v0.1.0-r1' "$denovo_out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r1 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
 grep -F '"mode": "denovo"' "$denovo_out/run.manifest.json" >/dev/null
 grep -F 'denovo_present	yes' "$denovo_out/03_results/report/04_reports/project_summary.tsv" >/dev/null
 grep -F 'De novo Assembly, Expression, and Annotation' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null

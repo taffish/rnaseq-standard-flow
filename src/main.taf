@@ -103,7 +103,7 @@ RUN
 set -eu
 
 FLOW_NAME="rnaseq-standard-flow"
-FLOW_VERSION="0.2.0-r1"
+FLOW_VERSION="0.2.0-r2"
 
 samples_arg="::!(--samples)samples::"
 mode="::mode::"
@@ -662,7 +662,7 @@ chmod +x "$commands_file"
     printf 'taf-rnaseq-count-flow\t0.1.0-r1\ttaffish dependency\n'
     printf 'taf-rnaseq-de-flow\t0.1.0-r2\ttaffish dependency\n'
     printf 'taf-rnaseq-enrichment-flow\t0.1.0-r3\ttaffish dependency\n'
-    printf 'taf-rnaseq-report-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-report-flow\t0.2.0-r2\ttaffish dependency\n'
     printf 'taf-rnaseq-denovo-assembly-flow\t0.1.0-r1\ttaffish dependency\n'
     printf 'taf-rnaseq-denovo-expression-flow\t0.1.0-r1\ttaffish dependency\n'
     printf 'taf-rnaseq-denovo-annotation-flow\t0.1.0-r1\ttaffish dependency\n'
@@ -1222,7 +1222,7 @@ fi
 
 step_name="09_rnaseq_report"
 step_log="$logs_steps_dir/${step_name}.log"
-report_cmd="taf-rnaseq-report-flow-v0.2.0-r1 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --analysis-mode $(sq "$mode") --analysis-route $(sq "$route") --de-source $(sq "$de_source") --outdir $(sq "$report_out") --force"
+report_cmd="taf-rnaseq-report-flow-v0.2.0-r2 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --analysis-mode $(sq "$mode") --analysis-route $(sq "$route") --de-source $(sq "$de_source") --outdir $(sq "$report_out") --force"
 record_command "$step_name" "$report_cmd"
 log "START $step_name"
 if {
@@ -1230,7 +1230,7 @@ if {
     printf '# pre-report: collect split PNG/PDF standard plot gallery\n'
     collect_all_standard_plots
     printf '# command: %s\n' "$report_cmd"
-    [[taf: taf-rnaseq-report-flow-v0.2.0-r1 --standard-out '"$outdir"' --project-name '"$project_name"' --analysis-mode '"$mode"' --analysis-route '"$route"' --de-source '"$de_source"' --outdir '"$report_out"' --force ]] </dev/null
+    [[taf: taf-rnaseq-report-flow-v0.2.0-r2 --standard-out '"$outdir"' --project-name '"$project_name"' --analysis-mode '"$mode"' --analysis-route '"$route"' --de-source '"$de_source"' --outdir '"$report_out"' --force ]] </dev/null
     [ -s "$report_out/04_reports/rnaseq_report.html" ] || {
         printf 'ERROR: rnaseq-report-flow did not produce rnaseq_report.html\n'
         exit 2
@@ -1418,7 +1418,7 @@ if {
         printf '    "taf-rnaseq-count-flow": "0.1.0-r1",\n'
         printf '    "taf-rnaseq-de-flow": "0.1.0-r2",\n'
         printf '    "taf-rnaseq-enrichment-flow": "0.1.0-r3",\n'
-        printf '    "taf-rnaseq-report-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-report-flow": "0.2.0-r2",\n'
         printf '    "taf-rnaseq-denovo-assembly-flow": "0.1.0-r1",\n'
         printf '    "taf-rnaseq-denovo-expression-flow": "0.1.0-r1",\n'
         printf '    "taf-rnaseq-denovo-annotation-flow": "0.1.0-r1"\n'
