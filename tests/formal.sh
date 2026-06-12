@@ -84,17 +84,17 @@ if ! command -v taf >/dev/null 2>&1; then
 fi
 
 for dep in \
-    taf-rnaseq-index-flow-v0.1.0-r1 \
-    taf-rnaseq-expression-flow-v0.1.0-r1 \
-    taf-rnaseq-alignment-flow-v0.1.0-r1 \
-    taf-rnaseq-alignment-qc-flow-v0.1.0-r1 \
-    taf-rnaseq-count-flow-v0.1.0-r1 \
-    taf-rnaseq-de-flow-v0.1.0-r2 \
-    taf-rnaseq-enrichment-flow-v0.1.0-r3 \
-    taf-rnaseq-report-flow-v0.2.0-r2 \
-    taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 \
-    taf-rnaseq-denovo-expression-flow-v0.1.0-r1 \
-    taf-rnaseq-denovo-annotation-flow-v0.1.0-r1
+    taf-rnaseq-index-flow-v0.2.0-r1 \
+    taf-rnaseq-expression-flow-v0.2.0-r1 \
+    taf-rnaseq-alignment-flow-v0.2.0-r1 \
+    taf-rnaseq-alignment-qc-flow-v0.2.0-r1 \
+    taf-rnaseq-count-flow-v0.2.0-r1 \
+    taf-rnaseq-de-flow-v0.2.0-r1 \
+    taf-rnaseq-enrichment-flow-v0.2.0-r1 \
+    taf-rnaseq-report-flow-v0.3.0-r2 \
+    taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 \
+    taf-rnaseq-denovo-expression-flow-v0.2.0-r1 \
+    taf-rnaseq-denovo-annotation-flow-v0.2.0-r1
 do
     if ! command -v "$dep" >/dev/null 2>&1; then
         echo "formal: dependency wrapper not found in PATH: $dep" >&2
@@ -121,7 +121,7 @@ taf check
 echo "[FORMAL] taf build"
 taf build
 
-flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.2.0-r2"
+flow_cmd="$project_dir/target/taf-rnaseq-standard-flow-v0.3.0-r1"
 if [ ! -x "$flow_cmd" ]; then
     echo "formal: built flow command is missing or not executable: $flow_cmd" >&2
     exit 1
@@ -283,18 +283,19 @@ grep -F 'enrichment	ora_barplot	png' "$out/04_reports/plot_files.tsv" >/dev/null
 grep -F 'enrichment	gsea_nes_plot	pdf' "$out/04_reports/plot_files.tsv" >/dev/null
 grep -F 'enrichment	gsea_enrichment_curves	png' "$out/04_reports/plot_files.tsv" >/dev/null
 grep -F 'Yeast SNF2 RNA-seq standard formal' "$out/04_reports/rnaseq_report.html" >/dev/null
-grep -F 'taf-rnaseq-index-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-expression-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-alignment-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-alignment-qc-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-count-flow-v0.1.0-r1' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-de-flow-v0.1.0-r2' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-enrichment-flow-v0.1.0-r3' "$out/04_reports/commands.sh" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-index-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-expression-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-alignment-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-alignment-qc-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-count-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-de-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-enrichment-flow-v0.2.0-r1' "$out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.3.0-r2 --standard-out' "$out/04_reports/commands.sh" >/dev/null
 grep -F 'TAFFISH RNA-seq project report' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'data-lang-toggle="zh"' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'https://taffish.github.io/' "$out/04_reports/rnaseq_report.html" >/dev/null
-grep -F 'IntersectionObserver' "$out/04_reports/rnaseq_report.html" >/dev/null
+grep -F '.side-links a.active' "$out/04_reports/rnaseq_report.html" >/dev/null
+grep -F 'window.addEventListener("scroll", requestUpdate' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'workflow-map' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'Deliverables and Output Structure' "$out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'Readable enrichment dotplot' "$out/04_reports/rnaseq_report.html" >/dev/null
@@ -306,7 +307,11 @@ test -s "$out/04_reports/report_interpretation.html"
 grep -F 'guide-sidebar' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F 'Long-Form Module Chapters' "$out/04_reports/report_interpretation.html" >/dev/null
 grep -F '长文模块章节' "$out/04_reports/report_interpretation.html" >/dev/null
-grep -F '../03_results/report/03_results/collected_plots/de.pca_plot.png' "$out/04_reports/rnaseq_report.html" >/dev/null
+grep -F '<img src="data:image/' "$out/04_reports/rnaseq_report.html" >/dev/null
+if grep -F '<img src="../03_results/report/03_results/collected_plots/' "$out/04_reports/rnaseq_report.html" >/dev/null; then
+    echo "formal: top-level report contains non-embedded plot image links." >&2
+    exit 1
+fi
 grep -F '../03_results/report/03_results/collected_html/expression.multiqc/index.html' "$out/04_reports/rnaseq_report.html" >/dev/null
 if grep -F '../03_results/collected_' "$out/04_reports/rnaseq_report.html" >/dev/null; then
     echo "formal: top-level report contains stale report-flow relative links." >&2
@@ -453,7 +458,7 @@ grep -F 'de_gene_column	transcript_id' "$denovo_out/04_reports/flow_summary.tsv"
 grep -F 'rnaseq-denovo-assembly-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
 grep -F 'rnaseq-denovo-expression-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
 grep -F 'rnaseq-denovo-annotation-flow' "$denovo_out/04_reports/subflows.tsv" >/dev/null
-grep -F 'taf-rnaseq-report-flow-v0.2.0-r2 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
+grep -F 'taf-rnaseq-report-flow-v0.3.0-r2 --standard-out' "$denovo_out/04_reports/commands.sh" >/dev/null
 grep -F 'denovo_present	yes' "$denovo_out/03_results/report/04_reports/project_summary.tsv" >/dev/null
 grep -F 'De novo Assembly, Expression, and Annotation' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null
 grep -F 'Yeast SNF2 RNA-seq de novo standard formal' "$denovo_out/04_reports/rnaseq_report.html" >/dev/null

@@ -1,8 +1,8 @@
 [package]
 name = "rnaseq-standard-flow"
 kind = "flow"
-version = "0.2.0"
-release = 2
+version = "0.3.0"
+release = 1
 license = "Apache-2.0"
 main = "src/main.taf"
 
@@ -26,19 +26,19 @@ description = "TAFFISH RNA-seq standard flow that composes the published RNA-seq
 name = "rnaseq-standard-flow"
 type = "taffish-flow"
 homepage = "https://github.com/taffish/rnaseq-standard-flow"
-version = "0.2.0"
+version = "0.3.0"
 license = "Apache-2.0"
 description = "TAFFISH-maintained RNA-seq umbrella flow composed from version-pinned TAFFISH RNA-seq subflow apps."
 
 [dependencies]
-taf-rnaseq-index-flow = "0.1.0-r1"
-taf-rnaseq-expression-flow = "0.1.0-r1"
-taf-rnaseq-alignment-flow = "0.1.0-r1"
-taf-rnaseq-alignment-qc-flow = "0.1.0-r1"
-taf-rnaseq-count-flow = "0.1.0-r1"
-taf-rnaseq-denovo-assembly-flow = "0.1.0-r1"
-taf-rnaseq-denovo-expression-flow = "0.1.0-r1"
-taf-rnaseq-denovo-annotation-flow = "0.1.0-r1"
-taf-rnaseq-de-flow = "0.1.0-r2"
-taf-rnaseq-enrichment-flow = "0.1.0-r3"
-taf-rnaseq-report-flow = "0.2.0-r2"
+taf-rnaseq-index-flow = "0.2.0-r1"
+taf-rnaseq-expression-flow = "0.2.0-r1"
+taf-rnaseq-alignment-flow = "0.2.0-r1"
+taf-rnaseq-alignment-qc-flow = "0.2.0-r1"
+taf-rnaseq-count-flow = "0.2.0-r1"
+taf-rnaseq-denovo-assembly-flow = "0.2.0-r1"
+taf-rnaseq-denovo-expression-flow = "0.2.0-r1"
+taf-rnaseq-denovo-annotation-flow = "0.2.0-r1"
+taf-rnaseq-de-flow = "0.2.0-r1"
+taf-rnaseq-enrichment-flow = "0.2.0-r1"
+taf-rnaseq-report-flow = "0.3.0-r2"

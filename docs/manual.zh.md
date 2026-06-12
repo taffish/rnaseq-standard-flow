@@ -10,7 +10,7 @@
 
 ## 1. 流程定位
 
-`0.2.0-r2` 默认仍是轻量的 reference / Salmon-first 路线，并兼容此前的
+`0.3.0-r1` 默认仍是轻量的 reference / Salmon-first 路线，并兼容此前的
 reference 用法：
 
 ```text
@@ -430,6 +430,53 @@ PROT2	GO:0005737	cytoplasm	cellular_component
 | `--enrichment-top-n` | `20` | 富集图展示的 top gene sets 数。 |
 | `--enrichment-seed` | `1` | GSEA 等步骤使用的随机种子。 |
 
+### 5.8 高级内部工具参数桥接
+
+正常项目不需要使用这一节。`rnaseq-standard-flow 0.3.0-r1` 已经把常规运行需要的
+关键参数作为顶层参数暴露出来。对于少数特殊项目，如果某个子流程内部工具需要额外参数，
+standard-flow 会用带命名空间的结构域参数桥接到子流程内部的 `@step:`。
+
+命名模式是：
+
+```text
+@<standard-step>-<child-tool-step>: ... @:
+```
+
+例如，`@denovo-assembly-trinity-assembly-step:` 会传给
+`rnaseq-denovo-assembly-flow` 内部的 `@trinity-assembly-step:`。所有这些参数默认都是
+空的，不会改变旧命令行为。完整槽位清单见 `docs/help.md` 和 README。常见分组如下：
+
+| 分组前缀 | 控制的子流程内部步骤 |
+| --- | --- |
+| `@index-...` | `rnaseq-index-flow` 内部 AGAT/gffread/indexer 步骤 |
+| `@expression-...` | `rnaseq-expression-flow` 内部 QC/修剪/Salmon/tximport/MultiQC 步骤 |
+| `@alignment-...` | `rnaseq-alignment-flow` 内部 fastp/HISAT2/samtools/MultiQC 步骤 |
+| `@alignment-qc-...` | `rnaseq-alignment-qc-flow` 内部 samtools/gffread/RSeQC/Qualimap/MultiQC 步骤 |
+| `@count-...` | `rnaseq-count-flow` 内部 samtools/featureCounts/MultiQC 步骤 |
+| `@denovo-assembly-...` | `rnaseq-denovo-assembly-flow` 内部 FastQC/fastp/Trinity/rnaSPAdes/seqkit/BUSCO/MultiQC 步骤 |
+| `@denovo-expression-...` | `rnaseq-denovo-expression-flow` 内部 seqkit/QC/修剪/Salmon/MultiQC 步骤 |
+| `@denovo-annotation-...` | `rnaseq-denovo-annotation-flow` 内部 seqkit/TransDecoder/DIAMOND 步骤 |
+| `@de-...` | `rnaseq-de-flow` 内部 DESeq2/PCA/绘图步骤 |
+| `@enrichment-...` | `rnaseq-enrichment-flow` 内部 ORA/GSEA/绘图步骤 |
+
+例如，大型无参组装如果需要限制 Trinity 的 in silico read normalization 覆盖深度，
+以降低临时磁盘和内存压力，可以写：
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out \
+  @denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:
+```
+
+这类参数适合高级用户处理资源、算法或特殊工具选项；常规分析仍应优先使用顶层参数。
+
 ## 6. 输出目录和关键文件
 
 标准输出结构：
@@ -606,11 +653,11 @@ taf-rnaseq-standard-flow \
 
 ### 为什么无参模式不自动开启
 
-缺少 `--genome` 可能是用户忘记传参，也可能是真正没有参考基因组。自动切换会把错误输入悄悄变成另一种分析路线，所以 `0.2.0-r2` 要求显式写 `--mode denovo`。
+缺少 `--genome` 可能是用户忘记传参，也可能是真正没有参考基因组。自动切换会把错误输入悄悄变成另一种分析路线，所以 `0.3.0-r1` 要求显式写 `--mode denovo`。
 
 ### 无参结果是不是 gene-level 结果
 
-默认不是。无参路线的主要 feature 是 assembled transcript ID。只有当后续提供可靠 transcript-to-gene 或 clustering 映射时，才可以构建更接近 gene/pseudo-gene 层面的矩阵。`0.2.0-r2` 的 standard denovo 路线以 transcript-level DE 和 homology-derived enrichment 为主。
+默认不是。无参路线的主要 feature 是 assembled transcript ID。只有当后续提供可靠 transcript-to-gene 或 clustering 映射时，才可以构建更接近 gene/pseudo-gene 层面的矩阵。`0.3.0-r1` 的 standard denovo 路线以 transcript-level DE 和 homology-derived enrichment 为主。
 
 ## 11. 边界
 
@@ -622,7 +669,7 @@ taf-rnaseq-standard-flow \
 - 不自动判断项目应该走 reference 还是 denovo。
 - 不自动删除失败样本。
 - 不替代完整生产级 workflow engine。
-- `0.2.0-r2` 可以构建 Kallisto index，但 reference 表达定量仍走 Salmon。
+- `0.3.0-r1` 可以构建 Kallisto index，但 reference 表达定量仍走 Salmon。
 - 无参同源注释是功能证据，不等同于人工审定注释；assembled transcript ID 也不等同于已知 reference gene ID。
 
 如果项目需要复杂 batch correction、多因素交互设计、splicing analysis、fusion detection、allele-specific expression、single-cell RNA-seq 或临床级报告，应在本流程输出的基础上设计额外分析。

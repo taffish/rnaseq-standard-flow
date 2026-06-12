@@ -1,7 +1,7 @@
 # rnaseq-standard-flow
 
 `rnaseq-standard-flow` is the TAFFISH RNA-seq umbrella flow. Version
-`0.2.0-r2` keeps the previous reference workflow interface compatible by
+`0.3.0-r1` keeps the previous reference workflow interface compatible by
 default, and adds an explicit de novo mode for projects without a reliable
 reference genome or annotation.
 
@@ -32,6 +32,20 @@ Explicit de novo route with `--mode denovo`:
 The flow starts from explicit local FASTQ, metadata, and mode-specific
 resources. It does not download reference data, gene sets, protein databases,
 GO mappings, models, or other resources during normal execution.
+
+## Contents
+
+- [Manuals](#manuals)
+- [Reference Usage](#reference-usage)
+- [De Novo Usage](#de-novo-usage)
+- [Advanced Internal Tool Passthrough](#advanced-internal-tool-passthrough)
+- [Input Tables](#input-tables)
+- [Outputs](#outputs)
+- [Dependencies](#dependencies)
+- [Scope](#scope)
+- [Full Yeast Validation Runs](#full-yeast-validation-runs)
+- [Testing](#testing)
+- [License and Citation](#license-and-citation)
 
 ## Manuals
 
@@ -117,6 +131,52 @@ In de novo mode, DESeq2 uses
 They are refused in de novo mode because alignment/count evidence requires a
 reference genome and annotation.
 
+## Advanced Internal Tool Passthrough
+
+Most users should use the stable top-level options documented above. Version
+`0.3.0-r1` also bridges selected internal tool-level `@step:` blocks from each
+subflow, so unusual lower-level options can be passed without forking either the
+standard flow or a subflow. These blocks are empty by default and do not change
+existing command behavior unless the user explicitly supplies them.
+
+The names use a parent namespace plus the child subflow step name. For example,
+`@denovo-assembly-trinity-assembly-step:` is passed to
+`rnaseq-denovo-assembly-flow` as its internal `@trinity-assembly-step:` block.
+
+| Standard-flow block group | Passed to internal subflow steps |
+| --- | --- |
+| `@index-agat-convert-step:`, `@index-gffread-gtf-step:`, `@index-gffread-transcripts-step:`, `@index-salmon-index-step:`, `@index-kallisto-index-step:`, `@index-hisat2-build-step:` | `rnaseq-index-flow` internal AGAT, gffread, Salmon, Kallisto, and HISAT2 steps |
+| `@expression-fastqc-pe-step:`, `@expression-fastqc-se-step:`, `@expression-fastp-pe-step:`, `@expression-fastp-se-step:`, `@expression-salmon-quant-pe-step:`, `@expression-salmon-quant-se-step:`, `@expression-tximport-step:`, `@expression-salmon-quantmerge-counts-step:`, `@expression-salmon-quantmerge-tpm-step:`, `@expression-multiqc-step:` | `rnaseq-expression-flow` internal QC, trimming, Salmon, tximport, quantmerge, and MultiQC steps |
+| `@alignment-fastp-pe-step:`, `@alignment-fastp-se-step:`, `@alignment-hisat2-align-pe-step:`, `@alignment-hisat2-align-se-step:`, `@alignment-samtools-sort-step:`, `@alignment-samtools-index-step:`, `@alignment-samtools-quickcheck-step:`, `@alignment-samtools-flagstat-step:`, `@alignment-samtools-idxstats-step:`, `@alignment-samtools-mapq-filter-step:`, `@alignment-samtools-mapq-index-step:`, `@alignment-multiqc-step:` | `rnaseq-alignment-flow` internal fastp, HISAT2, samtools, and MultiQC steps |
+| `@alignment-qc-samtools-quickcheck-step:`, `@alignment-qc-gffread-bed-step:`, `@alignment-qc-samtools-flagstat-step:`, `@alignment-qc-samtools-idxstats-step:`, `@alignment-qc-rseqc-bam-stat-step:`, `@alignment-qc-rseqc-infer-experiment-step:`, `@alignment-qc-rseqc-read-distribution-step:`, `@alignment-qc-qualimap-rnaseq-pe-step:`, `@alignment-qc-qualimap-rnaseq-se-step:`, `@alignment-qc-multiqc-step:` | `rnaseq-alignment-qc-flow` internal samtools, gffread, RSeQC, Qualimap, and MultiQC steps |
+| `@count-samtools-quickcheck-step:`, `@count-featurecounts-step:`, `@count-multiqc-step:` | `rnaseq-count-flow` internal samtools, featureCounts, and MultiQC steps |
+| `@denovo-assembly-fastqc-pe-step:`, `@denovo-assembly-fastqc-se-step:`, `@denovo-assembly-fastp-pe-step:`, `@denovo-assembly-fastp-se-step:`, `@denovo-assembly-trinity-assembly-step:`, `@denovo-assembly-rnaspades-assembly-step:`, `@denovo-assembly-seqkit-filter-step:`, `@denovo-assembly-seqkit-stats-step:`, `@denovo-assembly-busco-step:`, `@denovo-assembly-multiqc-step:` | `rnaseq-denovo-assembly-flow` internal QC, trimming, Trinity, rnaSPAdes, seqkit, BUSCO, and MultiQC steps |
+| `@denovo-expression-seqkit-transcript-stats-step:`, `@denovo-expression-fastqc-pe-step:`, `@denovo-expression-fastqc-se-step:`, `@denovo-expression-fastp-pe-step:`, `@denovo-expression-fastp-se-step:`, `@denovo-expression-salmon-denovo-index-step:`, `@denovo-expression-salmon-denovo-quant-pe-step:`, `@denovo-expression-salmon-denovo-quant-se-step:`, `@denovo-expression-salmon-denovo-quantmerge-counts-step:`, `@denovo-expression-salmon-denovo-quantmerge-tpm-step:`, `@denovo-expression-multiqc-step:` | `rnaseq-denovo-expression-flow` internal seqkit, QC, trimming, Salmon, quantmerge, and MultiQC steps |
+| `@denovo-annotation-seqkit-transcript-stats-step:`, `@denovo-annotation-transdecoder-longorfs-step:`, `@denovo-annotation-transdecoder-predict-step:`, `@denovo-annotation-diamond-makedb-step:`, `@denovo-annotation-diamond-blastp-step:` | `rnaseq-denovo-annotation-flow` internal seqkit, TransDecoder, and DIAMOND steps |
+| `@de-deseq2-step:`, `@de-deseq2-shrink-step:`, `@de-pca-step:`, `@de-de-plot-step:` | `rnaseq-de-flow` internal DESeq2 and plot-rendering steps |
+| `@enrichment-enrichment-both-background-step:`, `@enrichment-enrichment-both-step:`, `@enrichment-enrichment-ora-background-step:`, `@enrichment-enrichment-ora-step:`, `@enrichment-enrichment-gsea-step:`, `@enrichment-render-dotplot-step:`, `@enrichment-render-extra-plots-step:` | `rnaseq-enrichment-flow` internal ORA/GSEA and plot-rendering steps |
+
+For example, if a large de novo run needs stricter Trinity in silico read
+normalization to reduce temporary disk and memory pressure, bridge the Trinity
+option through standard-flow:
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out \
+  @denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:
+```
+
+Use passthrough blocks sparingly. Routine options such as mode, route, trimming,
+memory, DE cutoffs, enrichment cutoffs, and report labels are intentionally
+exposed as normal top-level options.
+
 ## Input Tables
 
 `samples.tsv` must contain `sample_id` and `read1`; optional `read2` enables
@@ -183,11 +243,11 @@ rnaseq-standard-out/
 
 The top-level `04_reports/rnaseq_report.html` and
 `04_reports/report_interpretation.html` are copied from `rnaseq-report-flow`
-0.2.0-r2; the full collector output remains available under `03_results/report/`.
+0.3.0-r2; the full collector output remains available under `03_results/report/`.
 The report is a branded static HTML project report with one-click
 English/Chinese switching, workflow sections, plot cards, table previews,
 linked QC/report HTML bundles, tool links, methods, versions, and provenance.
-0.2.0-r2 also adds de novo-aware report sections when de novo assembly, expression,
+0.3.0-r2 also adds de novo-aware report sections when de novo assembly, expression,
 and annotation outputs are present. The standard flow passes analysis mode, route, and DE
 count source explicitly to the report step so overview metrics remain correct
 even before the final top-level standard-flow summary is written.
@@ -207,17 +267,17 @@ formats produces 28 copied plot files.
 
 The flow depends on version-pinned TAFFISH subflows:
 
-- `taf-rnaseq-index-flow = 0.1.0-r1`
-- `taf-rnaseq-expression-flow = 0.1.0-r1`
-- `taf-rnaseq-alignment-flow = 0.1.0-r1`
-- `taf-rnaseq-alignment-qc-flow = 0.1.0-r1`
-- `taf-rnaseq-count-flow = 0.1.0-r1`
-- `taf-rnaseq-de-flow = 0.1.0-r2`
-- `taf-rnaseq-enrichment-flow = 0.1.0-r3`
-- `taf-rnaseq-report-flow = 0.2.0-r2`
-- `taf-rnaseq-denovo-assembly-flow = 0.1.0-r1`
-- `taf-rnaseq-denovo-expression-flow = 0.1.0-r1`
-- `taf-rnaseq-denovo-annotation-flow = 0.1.0-r1`
+- `taf-rnaseq-index-flow = 0.2.0-r1`
+- `taf-rnaseq-expression-flow = 0.2.0-r1`
+- `taf-rnaseq-alignment-flow = 0.2.0-r1`
+- `taf-rnaseq-alignment-qc-flow = 0.2.0-r1`
+- `taf-rnaseq-count-flow = 0.2.0-r1`
+- `taf-rnaseq-de-flow = 0.2.0-r1`
+- `taf-rnaseq-enrichment-flow = 0.2.0-r1`
+- `taf-rnaseq-report-flow = 0.3.0-r2`
+- `taf-rnaseq-denovo-assembly-flow = 0.2.0-r1`
+- `taf-rnaseq-denovo-expression-flow = 0.2.0-r1`
+- `taf-rnaseq-denovo-annotation-flow = 0.2.0-r1`
 
 Each subflow records its own tool-level dependencies in its output
 `versions.tsv`; the top-level flow merges those records into
@@ -258,3 +318,202 @@ taf-rnaseq-yeast-get-data \
 Then use `yeast-snf2-data-v1/03_results` as the data root for manual
 examples. The bundled formal test can also be pointed at such a data root with
 `TAFFISH_RNASEQ_TESTDATA`.
+
+## Full Yeast Validation Runs
+
+The `tests/` directory includes two full real-data validation helpers for
+manual inspection before release. They are not smoke tests and are not tuned to
+be tiny. Their purpose is to generate complete reference and de novo project
+outputs from the shared yeast SNF2 test data so the final HTML reports, plots,
+tables, links, QC subreports, and provenance can be reviewed by a human.
+
+Both scripts follow the same rule as the formal tests: they first run
+`taf build`, then execute only the built wrapper in this app:
+
+```text
+target/taf-rnaseq-standard-flow-v0.3.0-r1
+```
+
+They default to Apptainer unless `TAFFISH_CONTAINER_BACKEND` is already set,
+matching the intended server-side full-data validation environment.
+
+### Data Root
+
+By default, the scripts use the central RNA-seq yeast data directory in this
+repository:
+
+```text
+../test-data/yeast/data/03_results
+```
+
+To use another local copy produced by `taf-rnaseq-yeast-get-data`, set:
+
+```sh
+export TAFFISH_RNASEQ_TESTDATA=/path/to/yeast-snf2-data-v1/03_results
+```
+
+### Reference Validation
+
+Run:
+
+```sh
+cd repos/apps/bio/flows/rna-seq/rnaseq-standard-flow
+tests/test-real-reference.sh
+```
+
+Default output:
+
+```text
+tests/test-real-reference-out/
+```
+
+This run uses the full yeast SNF2 FASTQ sample table, SGD reference genome,
+SGD annotation, GO biological-process GMT file, and yeast background gene
+list. It runs the reference route with `--route both`, so the output covers:
+
+- `rnaseq-index-flow`
+- `rnaseq-expression-flow`
+- `rnaseq-alignment-flow`
+- `rnaseq-alignment-qc-flow`
+- `rnaseq-count-flow`
+- `rnaseq-de-flow`
+- `rnaseq-enrichment-flow`
+- `rnaseq-report-flow`
+
+The script explicitly sets the validation profile instead of relying only on
+defaults:
+
+- `--route both`: validate both Salmon-first expression and the alignment/count
+  branch.
+- `--de-source featurecounts`: use the classical alignment-based gene count
+  matrix for the formal DE result while still retaining Salmon expression
+  outputs for transcript/gene abundance evidence.
+- `--count-strand 0`, `--sequencing-protocol non-strand-specific`: match the
+  yeast example as an unstranded validation profile.
+- `--fit-type parametric`: use the standard DESeq2 dispersion fit unless a
+  project-specific diagnostic suggests switching to `local`.
+- `--min-count 10`, `--min-samples 4`: production-style low-count filtering for
+  a 24-sample count matrix.
+- `--padj-cutoff 0.05`, `--lfc-cutoff 1`: standard significant-feature cutoffs.
+- `--enrichment-min-size 2`, `--enrichment-max-size 500`,
+  `--enrichment-top-n 20`: normal enrichment plotting/reporting settings.
+
+Change output and threads with:
+
+```sh
+TAFFISH_RNASEQ_REAL_REFERENCE_OUT=/path/to/reference-out \
+TAFFISH_RNASEQ_REAL_THREADS=12 \
+tests/test-real-reference.sh
+```
+
+### De Novo Validation
+
+Run:
+
+```sh
+cd repos/apps/bio/flows/rna-seq/rnaseq-standard-flow
+tests/test-real-denovo.sh
+```
+
+Default output:
+
+```text
+tests/test-real-denovo-out/
+```
+
+The script uses the same full yeast FASTQ and metadata tables, then derives the
+example de novo annotation resources from the SGD source tarball already
+included in the yeast data package:
+
+- `tests/test-real-denovo-inputs/resources/yeast_orf_trans_all_R64-4-1.protein.faa`
+- `tests/test-real-denovo-inputs/resources/yeast_sgd_go_map.tsv`
+
+This mirrors the real de novo contract: FASTQ files are sequencing inputs, but
+`--protein-db` and `--go-map` are analyst-provided annotation resources. For a
+real non-model organism, replace these with protein and GO resources from an
+appropriate species, clade, or curated database.
+
+The de novo validation run covers:
+
+- `rnaseq-denovo-assembly-flow`
+- `rnaseq-denovo-expression-flow`
+- `rnaseq-denovo-annotation-flow`
+- `rnaseq-de-flow`
+- `rnaseq-enrichment-flow`
+- `rnaseq-report-flow`
+
+The script uses a realistic but conservative resource profile:
+
+- `--max-memory 256G`: intended for a full 24-sample Trinity validation run,
+  not a toy smoke.
+- `--min-contig-len 200`: keep the de novo transcriptome in a conservative
+  transcript-length range and avoid inflating the feature universe with very
+  short fragments.
+- `--denovo-min-orf-aa 50`: require a more interpretable minimum ORF length
+  before homology transfer.
+- `--denovo-evalue 1e-5`, `--denovo-max-target-seqs 1`: use a stricter
+  one-best-hit homology transfer profile for the example protein database.
+- `@denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:`:
+  passes Trinity's native in silico normalization cap through the standard-flow
+  bridge. This is a production-oriented guard against excessive temporary
+  FASTA size, disk use, and memory pressure in larger de novo projects.
+
+Change output, threads, memory, or Trinity normalization depth with:
+
+```sh
+TAFFISH_RNASEQ_REAL_DENOVO_OUT=/path/to/denovo-out \
+TAFFISH_RNASEQ_REAL_THREADS=16 \
+TAFFISH_RNASEQ_REAL_DENOVO_MAX_MEMORY=64G \
+TAFFISH_RNASEQ_REAL_DENOVO_TRINITY_NORM_COV=50 \
+tests/test-real-denovo.sh
+```
+
+### What To Inspect
+
+For both validation runs, open:
+
+```text
+<outdir>/04_reports/rnaseq_report.html
+<outdir>/04_reports/report_interpretation.html
+```
+
+Also check:
+
+- `04_reports/flow_summary.tsv`
+- `04_reports/subflows.tsv`
+- `04_reports/versions.tsv`
+- `04_reports/commands.sh`
+- `run.manifest.json`
+- `03_results/plots/png/`
+- `03_results/plots/pdf/`
+- linked QC/report HTML bundles collected by `rnaseq-report-flow`
+
+These validation output directories are ignored by Git:
+
+```text
+tests/test-real-reference-out*/
+tests/test-real-denovo-out*/
+tests/test-real-run-out*/
+tests/test-real-denovo-inputs/
+```
+
+The compatibility entrypoint `tests/test-real-run.sh` still exists and now
+delegates to `tests/test-real-reference.sh`, preserving the previous manual
+command habit.
+
+## Testing
+
+`tests/smoke.sh` builds the flow and runs tiny synthetic reference and de novo
+paths, including a compile-level check that advanced internal-tool passthrough
+is bridged correctly.
+
+`tests/formal.sh` uses the central yeast data package through
+`TAFFISH_RNASEQ_TESTDATA` and validates realistic reference and de novo subset
+paths. It is broader than smoke but still smaller than the full real-data
+validation helpers above.
+
+## License and Citation
+
+TAFFISH app packaging is distributed under Apache-2.0. The wrapped subflows and
+their upstream tools keep their own licenses and citation requirements; inspect
+the dependency apps and upstream projects for method-specific citation details.

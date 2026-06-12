@@ -10,7 +10,7 @@ This manual is written for:
 
 ## 1. What This Flow Does
 
-Version `0.2.0-r2` keeps the reference / Salmon-first route as the default
+Version `0.3.0-r1` keeps the reference / Salmon-first route as the default
 and remains compatible with the previous reference command line:
 
 ```text
@@ -444,6 +444,58 @@ These parameters are mainly used with `--route both`.
 | `--enrichment-top-n` | `20` | Number of top gene sets used in enrichment plots. |
 | `--enrichment-seed` | `1` | Random seed used by enrichment steps such as GSEA. |
 
+### 5.8 Advanced Internal Tool Passthrough
+
+Most projects do not need this section. `rnaseq-standard-flow 0.3.0-r1`
+exposes routine options as stable top-level parameters. For unusual projects,
+a lower-level tool inside a subflow may still need an option that is not
+promoted to the top-level interface. Standard-flow now bridges those internal
+subflow `@step:` blocks with namespaced top-level blocks.
+
+The naming pattern is:
+
+```text
+@<standard-step>-<child-tool-step>: ... @:
+```
+
+For example, `@denovo-assembly-trinity-assembly-step:` is passed to
+`rnaseq-denovo-assembly-flow` as its internal `@trinity-assembly-step:` block.
+All blocks are empty by default and do not alter existing command behavior
+unless explicitly supplied. The complete block list is in `docs/help.md` and
+the README. Common groups are:
+
+| Group prefix | Subflow controlled |
+| --- | --- |
+| `@index-...` | `rnaseq-index-flow` internal AGAT/gffread/indexer steps |
+| `@expression-...` | `rnaseq-expression-flow` internal QC/trimming/Salmon/tximport/MultiQC steps |
+| `@alignment-...` | `rnaseq-alignment-flow` internal fastp/HISAT2/samtools/MultiQC steps |
+| `@alignment-qc-...` | `rnaseq-alignment-qc-flow` internal samtools/gffread/RSeQC/Qualimap/MultiQC steps |
+| `@count-...` | `rnaseq-count-flow` internal samtools/featureCounts/MultiQC steps |
+| `@denovo-assembly-...` | `rnaseq-denovo-assembly-flow` internal FastQC/fastp/Trinity/rnaSPAdes/seqkit/BUSCO/MultiQC steps |
+| `@denovo-expression-...` | `rnaseq-denovo-expression-flow` internal seqkit/QC/trimming/Salmon/MultiQC steps |
+| `@denovo-annotation-...` | `rnaseq-denovo-annotation-flow` internal seqkit/TransDecoder/DIAMOND steps |
+| `@de-...` | `rnaseq-de-flow` internal DESeq2/PCA/plot steps |
+| `@enrichment-...` | `rnaseq-enrichment-flow` internal ORA/GSEA/rendering steps |
+
+For example, a large de novo assembly run may need stricter Trinity in silico
+read normalization to reduce temporary disk and memory pressure:
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out \
+  @denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:
+```
+
+Use passthrough for advanced resource, algorithm, or tool-specific tuning.
+Prefer documented top-level options for routine analyses.
+
 ## 6. Output Layout and Key Files
 
 Standard output tree:
@@ -622,13 +674,13 @@ Open the final report from `04_reports/rnaseq_report.html`, and keep the whole o
 
 Missing `--genome` may mean the user forgot an input, or it may mean the
 project truly lacks a reference. Automatic switching would silently change the
-analysis strategy, so `0.2.0-r2` requires explicit `--mode denovo`.
+analysis strategy, so `0.3.0-r1` requires explicit `--mode denovo`.
 
 ### Are de novo results gene-level results?
 
 Not by default. The primary features are assembled transcript IDs. Gene-like
 or pseudo-gene matrices require a reliable transcript-to-gene or clustering
-map. The `0.2.0-r2` standard de novo route is transcript-level DE plus
+map. The `0.3.0-r1` standard de novo route is transcript-level DE plus
 homology-derived enrichment.
 
 ## 11. Boundaries
@@ -641,7 +693,7 @@ homology-derived enrichment.
 - infer whether a project should use reference or de novo mode;
 - remove failed samples automatically;
 - replace a production workflow engine;
-- use Kallisto for reference-mode expression quantification in `0.2.0-r2`, although it can build a Kallisto index;
+- use Kallisto for reference-mode expression quantification in `0.3.0-r1`, although it can build a Kallisto index;
 - turn assembled transcript IDs into known reference gene IDs without an explicit mapping.
 
 De novo homology annotation is evidence, not manual curation, and assembled

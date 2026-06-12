@@ -1,6 +1,6 @@
 # rnaseq-standard-flow 无参分析手册
 
-本手册专门说明 `rnaseq-standard-flow 0.2.0-r2` 的无参路线，也就是
+本手册专门说明 `rnaseq-standard-flow 0.3.0-r1` 的无参路线，也就是
 `--mode denovo`。它面向没有可靠参考基因组、没有高质量基因注释，或者研究问题更偏向
 转录本发现的 bulk RNA-seq 项目。
 
@@ -259,6 +259,48 @@ denovo annotation flow 会用 DIAMOND hit 加上这个 GO map 生成：
 `--enrichment-padj-method`、`--enrichment-top-n` 和 `--enrichment-seed`
 会传给 `rnaseq-enrichment-flow`。无参模式中的 GMT/background 来自同源注释。
 
+### 6.1 高级内部工具参数桥接
+
+正式无参项目有时会遇到标准顶层参数没有覆盖的下层工具选项。典型例子是大型或高度冗余
+FASTQ 在 Trinity 组装前需要调整 in silico read normalization。standard-flow 用带命名空间的
+结构域参数桥接到子流程内部的 `@step:`；这些槽位默认为空，只有用户显式传入时才生效。
+
+无参路线最常用的桥接入口是：
+
+| standard-flow 入口 | 传递到子流程内部入口 |
+| --- | --- |
+| `@denovo-assembly-trinity-assembly-step: ... @:` | `rnaseq-denovo-assembly-flow @trinity-assembly-step:` |
+| `@denovo-assembly-rnaspades-assembly-step: ... @:` | `rnaseq-denovo-assembly-flow @rnaspades-assembly-step:` |
+| `@denovo-assembly-busco-step: ... @:` | `rnaseq-denovo-assembly-flow @busco-step:` |
+| `@denovo-expression-salmon-denovo-index-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-index-step:` |
+| `@denovo-expression-salmon-denovo-quant-pe-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-quant-pe-step:` |
+| `@denovo-expression-salmon-denovo-quant-se-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-quant-se-step:` |
+| `@denovo-annotation-transdecoder-longorfs-step: ... @:` | `rnaseq-denovo-annotation-flow @transdecoder-longorfs-step:` |
+| `@denovo-annotation-transdecoder-predict-step: ... @:` | `rnaseq-denovo-annotation-flow @transdecoder-predict-step:` |
+| `@denovo-annotation-diamond-blastp-step: ... @:` | `rnaseq-denovo-annotation-flow @diamond-blastp-step:` |
+| `@de-deseq2-step: ... @:` | `rnaseq-de-flow @deseq2-step:` |
+| `@enrichment-enrichment-gsea-step: ... @:` | `rnaseq-enrichment-flow @enrichment-gsea-step:` |
+
+完整槽位清单见 `docs/help.md` 和 README。
+
+例如，大型无参组装可以限制 Trinity normalization 覆盖深度：
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out \
+  @denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:
+```
+
+这类参数适合高级用户解决资源、算法或特殊工具选项问题。常规分析仍应优先使用标准顶层参数，
+因为顶层参数更稳定，也更容易在报告和 provenance 中解释。
+
 ## 7. 无参模式不使用的参数
 
 这些参数只用于 reference 模式：
@@ -417,9 +459,9 @@ taf-rnaseq-standard-flow \
   --outdir yeast-denovo-standard-out \
   --threads 4 \
   --max-memory 8G \
-  --min-contig-len 100 \
-  --denovo-min-orf-aa 30 \
-  --denovo-evalue 1e-3 \
+  --min-contig-len 200 \
+  --denovo-min-orf-aa 50 \
+  --denovo-evalue 1e-5 \
   --denovo-max-target-seqs 1 \
   --no-normalize \
   --project-name "Yeast SNF2 RNA-seq de novo standard test"
@@ -519,6 +561,10 @@ taf-rnaseq-standard-flow \
   --outdir yeast-denovo-standard-24sample-out \
   --threads 8 \
   --max-memory 32G \
+  --min-contig-len 200 \
+  --denovo-min-orf-aa 50 \
+  --denovo-evalue 1e-5 \
+  --denovo-max-target-seqs 1 \
   --project-name "Yeast SNF2 RNA-seq de novo 24-sample standard"
 ```
 

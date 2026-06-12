@@ -7,5 +7,8 @@ release.md
 target/*
 !target/.gitkeep
 tests/test-real-denovo-inputs/
+tests/test-real-denovo-out*/
+tests/test-real-reference-out*/
 tests/test-real-run-out*/
 tests/yeast-denovo-standard-report/
+tests/rnaseq_report*

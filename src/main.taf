@@ -97,13 +97,91 @@ ARGS
   1
 <(--project-name)project-name>
   RNA-seq project
+<(@:)index-agat-convert-step>
+<(@:)index-gffread-gtf-step>
+<(@:)index-gffread-transcripts-step>
+<(@:)index-salmon-index-step>
+<(@:)index-kallisto-index-step>
+<(@:)index-hisat2-build-step>
+<(@:)expression-fastqc-pe-step>
+<(@:)expression-fastqc-se-step>
+<(@:)expression-fastp-pe-step>
+<(@:)expression-fastp-se-step>
+<(@:)expression-salmon-quant-pe-step>
+<(@:)expression-salmon-quant-se-step>
+<(@:)expression-tximport-step>
+<(@:)expression-salmon-quantmerge-counts-step>
+<(@:)expression-salmon-quantmerge-tpm-step>
+<(@:)expression-multiqc-step>
+<(@:)alignment-fastp-pe-step>
+<(@:)alignment-fastp-se-step>
+<(@:)alignment-hisat2-align-pe-step>
+<(@:)alignment-hisat2-align-se-step>
+<(@:)alignment-samtools-sort-step>
+<(@:)alignment-samtools-index-step>
+<(@:)alignment-samtools-quickcheck-step>
+<(@:)alignment-samtools-flagstat-step>
+<(@:)alignment-samtools-idxstats-step>
+<(@:)alignment-samtools-mapq-filter-step>
+<(@:)alignment-samtools-mapq-index-step>
+<(@:)alignment-multiqc-step>
+<(@:)alignment-qc-samtools-quickcheck-step>
+<(@:)alignment-qc-gffread-bed-step>
+<(@:)alignment-qc-samtools-flagstat-step>
+<(@:)alignment-qc-samtools-idxstats-step>
+<(@:)alignment-qc-rseqc-bam-stat-step>
+<(@:)alignment-qc-rseqc-infer-experiment-step>
+<(@:)alignment-qc-rseqc-read-distribution-step>
+<(@:)alignment-qc-qualimap-rnaseq-pe-step>
+<(@:)alignment-qc-qualimap-rnaseq-se-step>
+<(@:)alignment-qc-multiqc-step>
+<(@:)count-samtools-quickcheck-step>
+<(@:)count-featurecounts-step>
+<(@:)count-multiqc-step>
+<(@:)denovo-assembly-fastqc-pe-step>
+<(@:)denovo-assembly-fastqc-se-step>
+<(@:)denovo-assembly-fastp-pe-step>
+<(@:)denovo-assembly-fastp-se-step>
+<(@:)denovo-assembly-trinity-assembly-step>
+<(@:)denovo-assembly-rnaspades-assembly-step>
+<(@:)denovo-assembly-seqkit-filter-step>
+<(@:)denovo-assembly-seqkit-stats-step>
+<(@:)denovo-assembly-busco-step>
+<(@:)denovo-assembly-multiqc-step>
+<(@:)denovo-expression-seqkit-transcript-stats-step>
+<(@:)denovo-expression-fastqc-pe-step>
+<(@:)denovo-expression-fastqc-se-step>
+<(@:)denovo-expression-fastp-pe-step>
+<(@:)denovo-expression-fastp-se-step>
+<(@:)denovo-expression-salmon-denovo-index-step>
+<(@:)denovo-expression-salmon-denovo-quant-pe-step>
+<(@:)denovo-expression-salmon-denovo-quant-se-step>
+<(@:)denovo-expression-salmon-denovo-quantmerge-counts-step>
+<(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step>
+<(@:)denovo-expression-multiqc-step>
+<(@:)denovo-annotation-seqkit-transcript-stats-step>
+<(@:)denovo-annotation-transdecoder-longorfs-step>
+<(@:)denovo-annotation-transdecoder-predict-step>
+<(@:)denovo-annotation-diamond-makedb-step>
+<(@:)denovo-annotation-diamond-blastp-step>
+<(@:)de-deseq2-step>
+<(@:)de-deseq2-shrink-step>
+<(@:)de-pca-step>
+<(@:)de-de-plot-step>
+<(@:)enrichment-enrichment-both-background-step>
+<(@:)enrichment-enrichment-both-step>
+<(@:)enrichment-enrichment-ora-background-step>
+<(@:)enrichment-enrichment-ora-step>
+<(@:)enrichment-enrichment-gsea-step>
+<(@:)enrichment-render-dotplot-step>
+<(@:)enrichment-render-extra-plots-step>
 
 RUN
 <taffish>
 set -eu
 
 FLOW_NAME="rnaseq-standard-flow"
-FLOW_VERSION="0.2.0-r2"
+FLOW_VERSION="0.3.0-r1"
 
 samples_arg="::!(--samples)samples::"
 mode="::mode::"
@@ -413,7 +491,7 @@ case "$route" in
 esac
 
 if [ "$mode" = "denovo" ] && [ "$route" != "salmon" ]; then
-    fail "--mode denovo supports only --route salmon in r3; alignment/count evidence requires a reference genome"
+    fail "--mode denovo supports only --route salmon in 0.3.0-r1; alignment/count evidence requires a reference genome"
 fi
 
 case "$de_source" in
@@ -422,7 +500,7 @@ case "$de_source" in
 esac
 
 if [ "$mode" = "denovo" ] && [ "$de_source" != "salmon" ]; then
-    fail "--mode denovo supports only --de-source salmon in r3; transcript-level de novo counts replace featureCounts"
+    fail "--mode denovo supports only --de-source salmon in 0.3.0-r1; transcript-level de novo counts replace featureCounts"
 fi
 
 if [ "$de_source" = "featurecounts" ] && [ "$route" != "both" ]; then
@@ -567,8 +645,8 @@ if [ "$mode" = "reference" ]; then
 else
     [ -z "$genome_path" ] || fail "--mode denovo does not use --genome; omit reference inputs to avoid mixing ID spaces"
     [ -z "$annotation_path" ] || fail "--mode denovo does not use --annotation; omit reference inputs to avoid mixing ID spaces"
-    [ -z "$gene_sets_path" ] || fail "--mode denovo derives gene sets from --go-map through rnaseq-denovo-annotation-flow; omit --gene-sets in r3"
-    [ -z "$background_arg" ] || fail "--mode denovo derives background from --go-map through rnaseq-denovo-annotation-flow; omit --background in r3"
+    [ -z "$gene_sets_path" ] || fail "--mode denovo derives gene sets from --go-map through rnaseq-denovo-annotation-flow; omit --gene-sets in 0.3.0-r1"
+    [ -z "$background_arg" ] || fail "--mode denovo derives background from --go-map through rnaseq-denovo-annotation-flow; omit --background in 0.3.0-r1"
     [ -n "$protein_db_path" ] || fail "--mode denovo requires --protein-db"
     [ -n "$go_map_path" ] || fail "--mode denovo requires --go-map"
     [ -r "$protein_db_path" ] || fail "cannot read --protein-db: $protein_db_path"
@@ -655,22 +733,22 @@ chmod +x "$commands_file"
 {
     printf 'tool\tversion\tsource\n'
     printf 'rnaseq-standard-flow\t%s\ttaffish flow\n' "$FLOW_VERSION"
-    printf 'taf-rnaseq-index-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-expression-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-alignment-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-alignment-qc-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-count-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-de-flow\t0.1.0-r2\ttaffish dependency\n'
-    printf 'taf-rnaseq-enrichment-flow\t0.1.0-r3\ttaffish dependency\n'
-    printf 'taf-rnaseq-report-flow\t0.2.0-r2\ttaffish dependency\n'
-    printf 'taf-rnaseq-denovo-assembly-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-denovo-expression-flow\t0.1.0-r1\ttaffish dependency\n'
-    printf 'taf-rnaseq-denovo-annotation-flow\t0.1.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-index-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-expression-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-alignment-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-alignment-qc-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-count-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-de-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-enrichment-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-report-flow\t0.3.0-r2\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-assembly-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-expression-flow\t0.2.0-r1\ttaffish dependency\n'
+    printf 'taf-rnaseq-denovo-annotation-flow\t0.2.0-r1\ttaffish dependency\n'
 } > "$versions_file"
 
 {
     printf '%s %s runs the RNA-seq standard route by composing published TAFFISH RNA-seq subflows.\n\n' "$FLOW_NAME" "$FLOW_VERSION"
-    printf 'The default --mode reference route is compatible with r2: it prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
+    printf 'The default --mode reference route remains compatible with r2 user commands: it prepares a reference bundle, quantifies transcript expression with Salmon/tximport, runs DESeq2 differential expression, runs offline GMT enrichment, and renders a static project report.\n'
     printf 'With --route both in reference mode it also runs HISAT2 alignment, alignment-level QC, and featureCounts gene counting. Differential expression uses --de-source to choose Salmon/tximport or featureCounts counts.\n'
     printf 'The explicit --mode denovo route replaces reference indexing and reference-guided quantification with de novo transcriptome assembly, transcript-level Salmon quantification, and homology-derived annotation/gene sets before DE/enrichment/report.\n'
     printf 'The flow does not download references, gene sets, or databases at runtime. It writes all generated files under the explicit output directory.\n'
@@ -773,13 +851,13 @@ fi
 if [ "$mode" = "reference" ]; then
 step_name="02_rnaseq_index"
 step_log="$logs_steps_dir/${step_name}.log"
-index_cmd="taf-rnaseq-index-flow-v0.1.0-r1 --genome $(sq "$genome_path") --annotation $(sq "$annotation_path") --outdir $(sq "$ref_out") --threads $(sq "$threads") --indexer $(sq "$indexer") --genome-indexer $(sq "$genome_indexer") --kmer $(sq "$kmer") --force"
+index_cmd="taf-rnaseq-index-flow-v0.2.0-r1 --genome $(sq "$genome_path") --annotation $(sq "$annotation_path") --outdir $(sq "$ref_out") --threads $(sq "$threads") --indexer $(sq "$indexer") --genome-indexer $(sq "$genome_indexer") --kmer $(sq "$kmer") --force @agat-convert-step: ::(@:)index-agat-convert-step:: @: @gffread-gtf-step: ::(@:)index-gffread-gtf-step:: @: @gffread-transcripts-step: ::(@:)index-gffread-transcripts-step:: @: @salmon-index-step: ::(@:)index-salmon-index-step:: @: @kallisto-index-step: ::(@:)index-kallisto-index-step:: @: @hisat2-build-step: ::(@:)index-hisat2-build-step:: @:"
 record_command "$step_name" "$index_cmd"
 log "START $step_name"
 if {
     printf '# step: %s\n' "$step_name"
     printf '# command: %s\n' "$index_cmd"
-    [[taf: taf-rnaseq-index-flow-v0.1.0-r1 --genome '"$genome_path"' --annotation '"$annotation_path"' --outdir '"$ref_out"' --threads '"$threads"' --indexer '"$indexer"' --genome-indexer '"$genome_indexer"' --kmer '"$kmer"' --force ]] </dev/null
+    [[taf: taf-rnaseq-index-flow-v0.2.0-r1 --genome '"$genome_path"' --annotation '"$annotation_path"' --outdir '"$ref_out"' --threads '"$threads"' --indexer '"$indexer"' --genome-indexer '"$genome_indexer"' --kmer '"$kmer"' --force @agat-convert-step: ::(@:)index-agat-convert-step:: @: @gffread-gtf-step: ::(@:)index-gffread-gtf-step:: @: @gffread-transcripts-step: ::(@:)index-gffread-transcripts-step:: @: @salmon-index-step: ::(@:)index-salmon-index-step:: @: @kallisto-index-step: ::(@:)index-kallisto-index-step:: @: @hisat2-build-step: ::(@:)index-hisat2-build-step:: @: ]] </dev/null
     [ -s "$ref_out/03_results/salmon_index/info.json" ] || {
         printf 'ERROR: rnaseq-index-flow did not produce Salmon index info.json\n'
         exit 2
@@ -813,22 +891,23 @@ genes_gtf="$ref_out/03_results/annotation/genes.gtf"
 
 step_name="03_rnaseq_expression"
 step_log="$logs_steps_dir/${step_name}.log"
-expression_cmd="taf-rnaseq-expression-flow-v0.1.0-r1 --samples $(sq "$samples_path") --index $(sq "$salmon_index") --tx2gene $(sq "$tx2gene") --outdir $(sq "$expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --min-assigned-frags $(sq "$min_assigned_frags") --counts-from-abundance $(sq "$counts_from_abundance") --force"
+expression_cmd="taf-rnaseq-expression-flow-v0.2.0-r1 --samples $(sq "$samples_path") --index $(sq "$salmon_index") --tx2gene $(sq "$tx2gene") --outdir $(sq "$expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --min-assigned-frags $(sq "$min_assigned_frags") --counts-from-abundance $(sq "$counts_from_abundance") --force"
 [ "$trim_flag" = false ] || expression_cmd="$expression_cmd --trim"
 [ "$skip_fastqc_flag" = false ] || expression_cmd="$expression_cmd --skip-fastqc"
+expression_cmd="$expression_cmd @fastqc-pe-step: ::(@:)expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)expression-fastp-se-step:: @: @salmon-quant-pe-step: ::(@:)expression-salmon-quant-pe-step:: @: @salmon-quant-se-step: ::(@:)expression-salmon-quant-se-step:: @: @tximport-step: ::(@:)expression-tximport-step:: @: @salmon-quantmerge-counts-step: ::(@:)expression-salmon-quantmerge-counts-step:: @: @salmon-quantmerge-tpm-step: ::(@:)expression-salmon-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)expression-multiqc-step:: @:"
 record_command "$step_name" "$expression_cmd"
 log "START $step_name"
 if {
     printf '# step: %s\n' "$step_name"
     printf '# command: %s\n' "$expression_cmd"
     if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
-        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --skip-fastqc --force ]] </dev/null
+        [[taf: taf-rnaseq-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --skip-fastqc --force @fastqc-pe-step: ::(@:)expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)expression-fastp-se-step:: @: @salmon-quant-pe-step: ::(@:)expression-salmon-quant-pe-step:: @: @salmon-quant-se-step: ::(@:)expression-salmon-quant-se-step:: @: @tximport-step: ::(@:)expression-tximport-step:: @: @salmon-quantmerge-counts-step: ::(@:)expression-salmon-quantmerge-counts-step:: @: @salmon-quantmerge-tpm-step: ::(@:)expression-salmon-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)expression-multiqc-step:: @: ]] </dev/null
     elif [ "$trim_flag" = true ]; then
-        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --force ]] </dev/null
+        [[taf: taf-rnaseq-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --trim --force @fastqc-pe-step: ::(@:)expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)expression-fastp-se-step:: @: @salmon-quant-pe-step: ::(@:)expression-salmon-quant-pe-step:: @: @salmon-quant-se-step: ::(@:)expression-salmon-quant-se-step:: @: @tximport-step: ::(@:)expression-tximport-step:: @: @salmon-quantmerge-counts-step: ::(@:)expression-salmon-quantmerge-counts-step:: @: @salmon-quantmerge-tpm-step: ::(@:)expression-salmon-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)expression-multiqc-step:: @: ]] </dev/null
     elif [ "$skip_fastqc_flag" = true ]; then
-        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --skip-fastqc --force ]] </dev/null
+        [[taf: taf-rnaseq-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --skip-fastqc --force @fastqc-pe-step: ::(@:)expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)expression-fastp-se-step:: @: @salmon-quant-pe-step: ::(@:)expression-salmon-quant-pe-step:: @: @salmon-quant-se-step: ::(@:)expression-salmon-quant-se-step:: @: @tximport-step: ::(@:)expression-tximport-step:: @: @salmon-quantmerge-counts-step: ::(@:)expression-salmon-quantmerge-counts-step:: @: @salmon-quantmerge-tpm-step: ::(@:)expression-salmon-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)expression-multiqc-step:: @: ]] </dev/null
     else
-        [[taf: taf-rnaseq-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --force ]] </dev/null
+        [[taf: taf-rnaseq-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$salmon_index"' --tx2gene '"$tx2gene"' --outdir '"$expression_out"' --threads '"$threads"' --library-type '"$library_type"' --min-assigned-frags '"$min_assigned_frags"' --counts-from-abundance '"$counts_from_abundance"' --force @fastqc-pe-step: ::(@:)expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)expression-fastp-se-step:: @: @salmon-quant-pe-step: ::(@:)expression-salmon-quant-pe-step:: @: @salmon-quant-se-step: ::(@:)expression-salmon-quant-se-step:: @: @tximport-step: ::(@:)expression-tximport-step:: @: @salmon-quantmerge-counts-step: ::(@:)expression-salmon-quantmerge-counts-step:: @: @salmon-quantmerge-tpm-step: ::(@:)expression-salmon-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)expression-multiqc-step:: @: ]] </dev/null
     fi
     [ -s "$expression_out/03_results/matrices/gene_counts.tsv" ] || {
         printf 'ERROR: rnaseq-expression-flow did not produce gene_counts.tsv\n'
@@ -851,17 +930,18 @@ if [ "$route" = "both" ]; then
 
     step_name="04_rnaseq_alignment"
     step_log="$logs_steps_dir/${step_name}.log"
-    alignment_cmd="taf-rnaseq-alignment-flow-v0.1.0-r1 --samples $(sq "$samples_path") --index $(sq "$hisat2_index_prefix") --outdir $(sq "$alignment_out") --threads $(sq "$threads") --rna-strandness $(sq "$rna_strandness") --min-mapq $(sq "$alignment_min_mapq") --force"
+    alignment_cmd="taf-rnaseq-alignment-flow-v0.2.0-r1 --samples $(sq "$samples_path") --index $(sq "$hisat2_index_prefix") --outdir $(sq "$alignment_out") --threads $(sq "$threads") --rna-strandness $(sq "$rna_strandness") --min-mapq $(sq "$alignment_min_mapq") --force"
     [ "$trim_flag" = false ] || alignment_cmd="$alignment_cmd --trim"
+    alignment_cmd="$alignment_cmd @fastp-pe-step: ::(@:)alignment-fastp-pe-step:: @: @fastp-se-step: ::(@:)alignment-fastp-se-step:: @: @hisat2-align-pe-step: ::(@:)alignment-hisat2-align-pe-step:: @: @hisat2-align-se-step: ::(@:)alignment-hisat2-align-se-step:: @: @samtools-sort-step: ::(@:)alignment-samtools-sort-step:: @: @samtools-index-step: ::(@:)alignment-samtools-index-step:: @: @samtools-quickcheck-step: ::(@:)alignment-samtools-quickcheck-step:: @: @samtools-flagstat-step: ::(@:)alignment-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-samtools-idxstats-step:: @: @samtools-mapq-filter-step: ::(@:)alignment-samtools-mapq-filter-step:: @: @samtools-mapq-index-step: ::(@:)alignment-samtools-mapq-index-step:: @: @multiqc-step: ::(@:)alignment-multiqc-step:: @:"
     record_command "$step_name" "$alignment_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$alignment_cmd"
         if [ "$trim_flag" = true ]; then
-            [[taf: taf-rnaseq-alignment-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --trim --force ]] </dev/null
+            [[taf: taf-rnaseq-alignment-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --trim --force @fastp-pe-step: ::(@:)alignment-fastp-pe-step:: @: @fastp-se-step: ::(@:)alignment-fastp-se-step:: @: @hisat2-align-pe-step: ::(@:)alignment-hisat2-align-pe-step:: @: @hisat2-align-se-step: ::(@:)alignment-hisat2-align-se-step:: @: @samtools-sort-step: ::(@:)alignment-samtools-sort-step:: @: @samtools-index-step: ::(@:)alignment-samtools-index-step:: @: @samtools-quickcheck-step: ::(@:)alignment-samtools-quickcheck-step:: @: @samtools-flagstat-step: ::(@:)alignment-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-samtools-idxstats-step:: @: @samtools-mapq-filter-step: ::(@:)alignment-samtools-mapq-filter-step:: @: @samtools-mapq-index-step: ::(@:)alignment-samtools-mapq-index-step:: @: @multiqc-step: ::(@:)alignment-multiqc-step:: @: ]] </dev/null
         else
-            [[taf: taf-rnaseq-alignment-flow-v0.1.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --force ]] </dev/null
+            [[taf: taf-rnaseq-alignment-flow-v0.2.0-r1 --samples '"$samples_path"' --index '"$hisat2_index_prefix"' --outdir '"$alignment_out"' --threads '"$threads"' --rna-strandness '"$rna_strandness"' --min-mapq '"$alignment_min_mapq"' --force @fastp-pe-step: ::(@:)alignment-fastp-pe-step:: @: @fastp-se-step: ::(@:)alignment-fastp-se-step:: @: @hisat2-align-pe-step: ::(@:)alignment-hisat2-align-pe-step:: @: @hisat2-align-se-step: ::(@:)alignment-hisat2-align-se-step:: @: @samtools-sort-step: ::(@:)alignment-samtools-sort-step:: @: @samtools-index-step: ::(@:)alignment-samtools-index-step:: @: @samtools-quickcheck-step: ::(@:)alignment-samtools-quickcheck-step:: @: @samtools-flagstat-step: ::(@:)alignment-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-samtools-idxstats-step:: @: @samtools-mapq-filter-step: ::(@:)alignment-samtools-mapq-filter-step:: @: @samtools-mapq-index-step: ::(@:)alignment-samtools-mapq-index-step:: @: @multiqc-step: ::(@:)alignment-multiqc-step:: @: ]] </dev/null
         fi
         [ -s "$alignment_out/04_reports/bam_files.tsv" ] || {
             printf 'ERROR: rnaseq-alignment-flow did not produce bam_files.tsv\n'
@@ -880,17 +960,18 @@ if [ "$route" = "both" ]; then
 
     step_name="05_rnaseq_alignment_qc"
     step_log="$logs_steps_dir/${step_name}.log"
-    alignment_qc_cmd="taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams $(sq "$bam_files") --gtf $(sq "$genes_gtf") --outdir $(sq "$alignment_qc_out") --threads $(sq "$threads") --java-mem-size $(sq "$java_mem_size") --mapq $(sq "$qc_mapq") --infer-sample-size $(sq "$infer_sample_size") --sequencing-protocol $(sq "$sequencing_protocol") --force"
+    alignment_qc_cmd="taf-rnaseq-alignment-qc-flow-v0.2.0-r1 --bams $(sq "$bam_files") --gtf $(sq "$genes_gtf") --outdir $(sq "$alignment_qc_out") --threads $(sq "$threads") --java-mem-size $(sq "$java_mem_size") --mapq $(sq "$qc_mapq") --infer-sample-size $(sq "$infer_sample_size") --sequencing-protocol $(sq "$sequencing_protocol") --force"
     [ "$paired_flag" = false ] || alignment_qc_cmd="$alignment_qc_cmd --paired"
+    alignment_qc_cmd="$alignment_qc_cmd @samtools-quickcheck-step: ::(@:)alignment-qc-samtools-quickcheck-step:: @: @gffread-bed-step: ::(@:)alignment-qc-gffread-bed-step:: @: @samtools-flagstat-step: ::(@:)alignment-qc-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-qc-samtools-idxstats-step:: @: @rseqc-bam-stat-step: ::(@:)alignment-qc-rseqc-bam-stat-step:: @: @rseqc-infer-experiment-step: ::(@:)alignment-qc-rseqc-infer-experiment-step:: @: @rseqc-read-distribution-step: ::(@:)alignment-qc-rseqc-read-distribution-step:: @: @qualimap-rnaseq-pe-step: ::(@:)alignment-qc-qualimap-rnaseq-pe-step:: @: @qualimap-rnaseq-se-step: ::(@:)alignment-qc-qualimap-rnaseq-se-step:: @: @multiqc-step: ::(@:)alignment-qc-multiqc-step:: @:"
     record_command "$step_name" "$alignment_qc_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$alignment_qc_cmd"
         if [ "$paired_flag" = true ]; then
-            [[taf: taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --paired --force ]] </dev/null
+            [[taf: taf-rnaseq-alignment-qc-flow-v0.2.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --paired --force @samtools-quickcheck-step: ::(@:)alignment-qc-samtools-quickcheck-step:: @: @gffread-bed-step: ::(@:)alignment-qc-gffread-bed-step:: @: @samtools-flagstat-step: ::(@:)alignment-qc-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-qc-samtools-idxstats-step:: @: @rseqc-bam-stat-step: ::(@:)alignment-qc-rseqc-bam-stat-step:: @: @rseqc-infer-experiment-step: ::(@:)alignment-qc-rseqc-infer-experiment-step:: @: @rseqc-read-distribution-step: ::(@:)alignment-qc-rseqc-read-distribution-step:: @: @qualimap-rnaseq-pe-step: ::(@:)alignment-qc-qualimap-rnaseq-pe-step:: @: @qualimap-rnaseq-se-step: ::(@:)alignment-qc-qualimap-rnaseq-se-step:: @: @multiqc-step: ::(@:)alignment-qc-multiqc-step:: @: ]] </dev/null
         else
-            [[taf: taf-rnaseq-alignment-qc-flow-v0.1.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --force ]] </dev/null
+            [[taf: taf-rnaseq-alignment-qc-flow-v0.2.0-r1 --bams '"$bam_files"' --gtf '"$genes_gtf"' --outdir '"$alignment_qc_out"' --threads '"$threads"' --java-mem-size '"$java_mem_size"' --mapq '"$qc_mapq"' --infer-sample-size '"$infer_sample_size"' --sequencing-protocol '"$sequencing_protocol"' --force @samtools-quickcheck-step: ::(@:)alignment-qc-samtools-quickcheck-step:: @: @gffread-bed-step: ::(@:)alignment-qc-gffread-bed-step:: @: @samtools-flagstat-step: ::(@:)alignment-qc-samtools-flagstat-step:: @: @samtools-idxstats-step: ::(@:)alignment-qc-samtools-idxstats-step:: @: @rseqc-bam-stat-step: ::(@:)alignment-qc-rseqc-bam-stat-step:: @: @rseqc-infer-experiment-step: ::(@:)alignment-qc-rseqc-infer-experiment-step:: @: @rseqc-read-distribution-step: ::(@:)alignment-qc-rseqc-read-distribution-step:: @: @qualimap-rnaseq-pe-step: ::(@:)alignment-qc-qualimap-rnaseq-pe-step:: @: @qualimap-rnaseq-se-step: ::(@:)alignment-qc-qualimap-rnaseq-se-step:: @: @multiqc-step: ::(@:)alignment-qc-multiqc-step:: @: ]] </dev/null
         fi
         [ -s "$alignment_qc_out/04_reports/rnaseq_qc_summary.tsv" ] || {
             printf 'ERROR: rnaseq-alignment-qc-flow did not produce rnaseq_qc_summary.tsv\n'
@@ -907,17 +988,18 @@ if [ "$route" = "both" ]; then
 
     step_name="06_rnaseq_count"
     step_log="$logs_steps_dir/${step_name}.log"
-    count_cmd="taf-rnaseq-count-flow-v0.1.0-r1 --bams $(sq "$bam_files") --annotation $(sq "$genes_gtf") --outdir $(sq "$count_out") --threads $(sq "$threads") --strand $(sq "$count_strand") --feature-type $(sq "$count_feature_type") --attribute $(sq "$count_attribute") --min-mapq $(sq "$alignment_min_mapq") --min-assigned-reads $(sq "$count_min_assigned_reads") --force"
+    count_cmd="taf-rnaseq-count-flow-v0.2.0-r1 --bams $(sq "$bam_files") --annotation $(sq "$genes_gtf") --outdir $(sq "$count_out") --threads $(sq "$threads") --strand $(sq "$count_strand") --feature-type $(sq "$count_feature_type") --attribute $(sq "$count_attribute") --min-mapq $(sq "$alignment_min_mapq") --min-assigned-reads $(sq "$count_min_assigned_reads") --force"
     [ "$paired_flag" = false ] || count_cmd="$count_cmd --paired"
+    count_cmd="$count_cmd @samtools-quickcheck-step: ::(@:)count-samtools-quickcheck-step:: @: @featurecounts-step: ::(@:)count-featurecounts-step:: @: @multiqc-step: ::(@:)count-multiqc-step:: @:"
     record_command "$step_name" "$count_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$count_cmd"
         if [ "$paired_flag" = true ]; then
-            [[taf: taf-rnaseq-count-flow-v0.1.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --paired --force ]] </dev/null
+            [[taf: taf-rnaseq-count-flow-v0.2.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --paired --force @samtools-quickcheck-step: ::(@:)count-samtools-quickcheck-step:: @: @featurecounts-step: ::(@:)count-featurecounts-step:: @: @multiqc-step: ::(@:)count-multiqc-step:: @: ]] </dev/null
         else
-            [[taf: taf-rnaseq-count-flow-v0.1.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --force ]] </dev/null
+            [[taf: taf-rnaseq-count-flow-v0.2.0-r1 --bams '"$bam_files"' --annotation '"$genes_gtf"' --outdir '"$count_out"' --threads '"$threads"' --strand '"$count_strand"' --feature-type '"$count_feature_type"' --attribute '"$count_attribute"' --min-mapq '"$alignment_min_mapq"' --min-assigned-reads '"$count_min_assigned_reads"' --force @samtools-quickcheck-step: ::(@:)count-samtools-quickcheck-step:: @: @featurecounts-step: ::(@:)count-featurecounts-step:: @: @multiqc-step: ::(@:)count-multiqc-step:: @: ]] </dev/null
         fi
         [ -s "$count_out/03_results/matrices/gene_counts.tsv" ] || {
             printf 'ERROR: rnaseq-count-flow did not produce gene_counts.tsv\n'
@@ -963,31 +1045,32 @@ else
 
     step_name="02_rnaseq_denovo_assembly"
     step_log="$logs_steps_dir/${step_name}.log"
-    denovo_assembly_cmd="taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples $(sq "$samples_path") --outdir $(sq "$denovo_assembly_out") --threads $(sq "$threads") --assembler $(sq "$assembler") --max-memory $(sq "$max_memory") --min-contig-len $(sq "$min_contig_len") --ss-lib-type $(sq "$ss_lib_type") --force"
+    denovo_assembly_cmd="taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples $(sq "$samples_path") --outdir $(sq "$denovo_assembly_out") --threads $(sq "$threads") --assembler $(sq "$assembler") --max-memory $(sq "$max_memory") --min-contig-len $(sq "$min_contig_len") --ss-lib-type $(sq "$ss_lib_type") --force"
     [ "$trim_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --trim"
     [ "$skip_fastqc_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --skip-fastqc"
     [ "$no_normalize_flag" = false ] || denovo_assembly_cmd="$denovo_assembly_cmd --no-normalize"
+    denovo_assembly_cmd="$denovo_assembly_cmd @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @:"
     record_command "$step_name" "$denovo_assembly_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$denovo_assembly_cmd"
         if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ] && [ "$no_normalize_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --no-normalize --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --no-normalize --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --skip-fastqc --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$trim_flag" = true ] && [ "$no_normalize_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --no-normalize --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --no-normalize --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$skip_fastqc_flag" = true ] && [ "$no_normalize_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --no-normalize --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --no-normalize --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$trim_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --trim --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$skip_fastqc_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --skip-fastqc --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         elif [ "$no_normalize_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --no-normalize --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --no-normalize --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         else
-            [[taf: taf-rnaseq-denovo-assembly-flow-v0.1.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-assembly-flow-v0.2.0-r1 --samples '"$samples_path"' --outdir '"$denovo_assembly_out"' --threads '"$threads"' --assembler '"$assembler"' --max-memory '"$max_memory"' --min-contig-len '"$min_contig_len"' --ss-lib-type '"$ss_lib_type"' --force @fastqc-pe-step: ::(@:)denovo-assembly-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-assembly-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-assembly-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-assembly-fastp-se-step:: @: @trinity-assembly-step: ::(@:)denovo-assembly-trinity-assembly-step:: @: @rnaspades-assembly-step: ::(@:)denovo-assembly-rnaspades-assembly-step:: @: @seqkit-filter-step: ::(@:)denovo-assembly-seqkit-filter-step:: @: @seqkit-stats-step: ::(@:)denovo-assembly-seqkit-stats-step:: @: @busco-step: ::(@:)denovo-assembly-busco-step:: @: @multiqc-step: ::(@:)denovo-assembly-multiqc-step:: @: ]] </dev/null
         fi
         [ -s "$denovo_assembly_out/03_results/transcripts/assembled_transcripts.filtered.fa" ] || {
             printf 'ERROR: rnaseq-denovo-assembly-flow did not produce assembled_transcripts.filtered.fa\n'
@@ -1007,22 +1090,23 @@ else
 
     step_name="03_rnaseq_denovo_expression"
     step_log="$logs_steps_dir/${step_name}.log"
-    denovo_expression_cmd="taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples $(sq "$samples_path") --transcripts $(sq "$assembled_transcripts") --outdir $(sq "$denovo_expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --kmer $(sq "$kmer") --min-assigned-frags $(sq "$min_assigned_frags") --force"
+    denovo_expression_cmd="taf-rnaseq-denovo-expression-flow-v0.2.0-r1 --samples $(sq "$samples_path") --transcripts $(sq "$assembled_transcripts") --outdir $(sq "$denovo_expression_out") --threads $(sq "$threads") --library-type $(sq "$library_type") --kmer $(sq "$kmer") --min-assigned-frags $(sq "$min_assigned_frags") --force"
     [ "$trim_flag" = false ] || denovo_expression_cmd="$denovo_expression_cmd --trim"
     [ "$skip_fastqc_flag" = false ] || denovo_expression_cmd="$denovo_expression_cmd --skip-fastqc"
+    denovo_expression_cmd="$denovo_expression_cmd @seqkit-transcript-stats-step: ::(@:)denovo-expression-seqkit-transcript-stats-step:: @: @fastqc-pe-step: ::(@:)denovo-expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-expression-fastp-se-step:: @: @salmon-denovo-index-step: ::(@:)denovo-expression-salmon-denovo-index-step:: @: @salmon-denovo-quant-pe-step: ::(@:)denovo-expression-salmon-denovo-quant-pe-step:: @: @salmon-denovo-quant-se-step: ::(@:)denovo-expression-salmon-denovo-quant-se-step:: @: @salmon-denovo-quantmerge-counts-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-counts-step:: @: @salmon-denovo-quantmerge-tpm-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)denovo-expression-multiqc-step:: @:"
     record_command "$step_name" "$denovo_expression_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$denovo_expression_cmd"
         if [ "$trim_flag" = true ] && [ "$skip_fastqc_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --skip-fastqc --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --skip-fastqc --force @seqkit-transcript-stats-step: ::(@:)denovo-expression-seqkit-transcript-stats-step:: @: @fastqc-pe-step: ::(@:)denovo-expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-expression-fastp-se-step:: @: @salmon-denovo-index-step: ::(@:)denovo-expression-salmon-denovo-index-step:: @: @salmon-denovo-quant-pe-step: ::(@:)denovo-expression-salmon-denovo-quant-pe-step:: @: @salmon-denovo-quant-se-step: ::(@:)denovo-expression-salmon-denovo-quant-se-step:: @: @salmon-denovo-quantmerge-counts-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-counts-step:: @: @salmon-denovo-quantmerge-tpm-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)denovo-expression-multiqc-step:: @: ]] </dev/null
         elif [ "$trim_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --trim --force @seqkit-transcript-stats-step: ::(@:)denovo-expression-seqkit-transcript-stats-step:: @: @fastqc-pe-step: ::(@:)denovo-expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-expression-fastp-se-step:: @: @salmon-denovo-index-step: ::(@:)denovo-expression-salmon-denovo-index-step:: @: @salmon-denovo-quant-pe-step: ::(@:)denovo-expression-salmon-denovo-quant-pe-step:: @: @salmon-denovo-quant-se-step: ::(@:)denovo-expression-salmon-denovo-quant-se-step:: @: @salmon-denovo-quantmerge-counts-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-counts-step:: @: @salmon-denovo-quantmerge-tpm-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)denovo-expression-multiqc-step:: @: ]] </dev/null
         elif [ "$skip_fastqc_flag" = true ]; then
-            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --skip-fastqc --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --skip-fastqc --force @seqkit-transcript-stats-step: ::(@:)denovo-expression-seqkit-transcript-stats-step:: @: @fastqc-pe-step: ::(@:)denovo-expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-expression-fastp-se-step:: @: @salmon-denovo-index-step: ::(@:)denovo-expression-salmon-denovo-index-step:: @: @salmon-denovo-quant-pe-step: ::(@:)denovo-expression-salmon-denovo-quant-pe-step:: @: @salmon-denovo-quant-se-step: ::(@:)denovo-expression-salmon-denovo-quant-se-step:: @: @salmon-denovo-quantmerge-counts-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-counts-step:: @: @salmon-denovo-quantmerge-tpm-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)denovo-expression-multiqc-step:: @: ]] </dev/null
         else
-            [[taf: taf-rnaseq-denovo-expression-flow-v0.1.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --force ]] </dev/null
+            [[taf: taf-rnaseq-denovo-expression-flow-v0.2.0-r1 --samples '"$samples_path"' --transcripts '"$assembled_transcripts"' --outdir '"$denovo_expression_out"' --threads '"$threads"' --library-type '"$library_type"' --kmer '"$kmer"' --min-assigned-frags '"$min_assigned_frags"' --force @seqkit-transcript-stats-step: ::(@:)denovo-expression-seqkit-transcript-stats-step:: @: @fastqc-pe-step: ::(@:)denovo-expression-fastqc-pe-step:: @: @fastqc-se-step: ::(@:)denovo-expression-fastqc-se-step:: @: @fastp-pe-step: ::(@:)denovo-expression-fastp-pe-step:: @: @fastp-se-step: ::(@:)denovo-expression-fastp-se-step:: @: @salmon-denovo-index-step: ::(@:)denovo-expression-salmon-denovo-index-step:: @: @salmon-denovo-quant-pe-step: ::(@:)denovo-expression-salmon-denovo-quant-pe-step:: @: @salmon-denovo-quant-se-step: ::(@:)denovo-expression-salmon-denovo-quant-se-step:: @: @salmon-denovo-quantmerge-counts-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-counts-step:: @: @salmon-denovo-quantmerge-tpm-step: ::(@:)denovo-expression-salmon-denovo-quantmerge-tpm-step:: @: @multiqc-step: ::(@:)denovo-expression-multiqc-step:: @: ]] </dev/null
         fi
         [ -s "$denovo_expression_out/03_results/matrices/transcript_counts.tsv" ] || {
             printf 'ERROR: rnaseq-denovo-expression-flow did not produce transcript_counts.tsv\n'
@@ -1039,13 +1123,13 @@ else
 
     step_name="04_rnaseq_denovo_annotation"
     step_log="$logs_steps_dir/${step_name}.log"
-    denovo_annotation_cmd="taf-rnaseq-denovo-annotation-flow-v0.1.0-r1 --transcripts $(sq "$assembled_transcripts") --protein-db $(sq "$protein_db_path") --go-map $(sq "$go_map_path") --outdir $(sq "$denovo_annotation_out") --threads $(sq "$threads") --min-orf-aa $(sq "$denovo_min_orf_aa") --evalue $(sq "$denovo_evalue") --max-target-seqs $(sq "$denovo_max_target_seqs") --force"
+    denovo_annotation_cmd="taf-rnaseq-denovo-annotation-flow-v0.2.0-r1 --transcripts $(sq "$assembled_transcripts") --protein-db $(sq "$protein_db_path") --go-map $(sq "$go_map_path") --outdir $(sq "$denovo_annotation_out") --threads $(sq "$threads") --min-orf-aa $(sq "$denovo_min_orf_aa") --evalue $(sq "$denovo_evalue") --max-target-seqs $(sq "$denovo_max_target_seqs") --force @seqkit-transcript-stats-step: ::(@:)denovo-annotation-seqkit-transcript-stats-step:: @: @transdecoder-longorfs-step: ::(@:)denovo-annotation-transdecoder-longorfs-step:: @: @transdecoder-predict-step: ::(@:)denovo-annotation-transdecoder-predict-step:: @: @diamond-makedb-step: ::(@:)denovo-annotation-diamond-makedb-step:: @: @diamond-blastp-step: ::(@:)denovo-annotation-diamond-blastp-step:: @:"
     record_command "$step_name" "$denovo_annotation_cmd"
     log "START $step_name"
     if {
         printf '# step: %s\n' "$step_name"
         printf '# command: %s\n' "$denovo_annotation_cmd"
-        [[taf: taf-rnaseq-denovo-annotation-flow-v0.1.0-r1 --transcripts '"$assembled_transcripts"' --protein-db '"$protein_db_path"' --go-map '"$go_map_path"' --outdir '"$denovo_annotation_out"' --threads '"$threads"' --min-orf-aa '"$denovo_min_orf_aa"' --evalue '"$denovo_evalue"' --max-target-seqs '"$denovo_max_target_seqs"' --force ]] </dev/null
+        [[taf: taf-rnaseq-denovo-annotation-flow-v0.2.0-r1 --transcripts '"$assembled_transcripts"' --protein-db '"$protein_db_path"' --go-map '"$go_map_path"' --outdir '"$denovo_annotation_out"' --threads '"$threads"' --min-orf-aa '"$denovo_min_orf_aa"' --evalue '"$denovo_evalue"' --max-target-seqs '"$denovo_max_target_seqs"' --force @seqkit-transcript-stats-step: ::(@:)denovo-annotation-seqkit-transcript-stats-step:: @: @transdecoder-longorfs-step: ::(@:)denovo-annotation-transdecoder-longorfs-step:: @: @transdecoder-predict-step: ::(@:)denovo-annotation-transdecoder-predict-step:: @: @diamond-makedb-step: ::(@:)denovo-annotation-diamond-makedb-step:: @: @diamond-blastp-step: ::(@:)denovo-annotation-diamond-blastp-step:: @: ]] </dev/null
         [ -s "$denovo_annotation_out/03_results/gene_sets/denovo_go.gmt" ] || {
             printf 'ERROR: rnaseq-denovo-annotation-flow did not produce denovo_go.gmt\n'
             exit 2
@@ -1075,17 +1159,18 @@ fi
 
 step_name="07_rnaseq_de"
 step_log="$logs_steps_dir/${step_name}.log"
-de_cmd="taf-rnaseq-de-flow-v0.1.0-r2 --counts $(sq "$counts_file") --metadata $(sq "$metadata_path") --design $(sq "$design") --contrast $(sq "$contrast") --outdir $(sq "$de_out") --sample-column $(sq "$sample_column") --gene-column $(sq "$de_gene_column") --padj-cutoff $(sq "$padj_cutoff") --lfc-cutoff $(sq "$lfc_cutoff") --fit-type $(sq "$fit_type") --lfc-shrink $(sq "$lfc_shrink") --min-count $(sq "$min_count") --min-samples $(sq "$min_samples") --top-var $(sq "$top_var") --top-heatmap $(sq "$top_heatmap") --force"
+de_cmd="taf-rnaseq-de-flow-v0.2.0-r1 --counts $(sq "$counts_file") --metadata $(sq "$metadata_path") --design $(sq "$design") --contrast $(sq "$contrast") --outdir $(sq "$de_out") --sample-column $(sq "$sample_column") --gene-column $(sq "$de_gene_column") --padj-cutoff $(sq "$padj_cutoff") --lfc-cutoff $(sq "$lfc_cutoff") --fit-type $(sq "$fit_type") --lfc-shrink $(sq "$lfc_shrink") --min-count $(sq "$min_count") --min-samples $(sq "$min_samples") --top-var $(sq "$top_var") --top-heatmap $(sq "$top_heatmap") --force"
 [ -z "$coef" ] || de_cmd="$de_cmd --coef $(sq "$coef")"
+de_cmd="$de_cmd @deseq2-step: ::(@:)de-deseq2-step:: @: @deseq2-shrink-step: ::(@:)de-deseq2-shrink-step:: @: @pca-step: ::(@:)de-pca-step:: @: @de-plot-step: ::(@:)de-de-plot-step:: @:"
 record_command "$step_name" "$de_cmd"
 log "START $step_name"
 if {
     printf '# step: %s\n' "$step_name"
     printf '# command: %s\n' "$de_cmd"
     if [ -n "$coef" ]; then
-        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force --coef '"$coef"' ]] </dev/null
+        [[taf: taf-rnaseq-de-flow-v0.2.0-r1 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force --coef '"$coef"' @deseq2-step: ::(@:)de-deseq2-step:: @: @deseq2-shrink-step: ::(@:)de-deseq2-shrink-step:: @: @pca-step: ::(@:)de-pca-step:: @: @de-plot-step: ::(@:)de-de-plot-step:: @: ]] </dev/null
     else
-        [[taf: taf-rnaseq-de-flow-v0.1.0-r2 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force ]] </dev/null
+        [[taf: taf-rnaseq-de-flow-v0.2.0-r1 --counts '"$counts_file"' --metadata '"$metadata_path"' --design '"$design"' --contrast '"$contrast"' --outdir '"$de_out"' --sample-column '"$sample_column"' --gene-column '"$de_gene_column"' --padj-cutoff '"$padj_cutoff"' --lfc-cutoff '"$lfc_cutoff"' --fit-type '"$fit_type"' --lfc-shrink '"$lfc_shrink"' --min-count '"$min_count"' --min-samples '"$min_samples"' --top-var '"$top_var"' --top-heatmap '"$top_heatmap"' --force @deseq2-step: ::(@:)de-deseq2-step:: @: @deseq2-shrink-step: ::(@:)de-deseq2-shrink-step:: @: @pca-step: ::(@:)de-pca-step:: @: @de-plot-step: ::(@:)de-de-plot-step:: @: ]] </dev/null
     fi
     [ -s "$de_out/03_results/gene_lists/significant_genes.tsv" ] || {
         printf 'ERROR: rnaseq-de-flow did not produce significant_genes.tsv\n'
@@ -1096,15 +1181,15 @@ if {
         exit 2
     }
     [ -s "$de_out/03_results/plots/plot_summary.tsv" ] || {
-        printf 'ERROR: rnaseq-de-flow r2 did not produce plot_summary.tsv\n'
+        printf 'ERROR: rnaseq-de-flow did not produce plot_summary.tsv\n'
         exit 2
     }
     [ -s "$de_out/03_results/plots/deg_counts_barplot.pdf" ] || {
-        printf 'ERROR: rnaseq-de-flow r2 did not produce deg_counts_barplot.pdf\n'
+        printf 'ERROR: rnaseq-de-flow did not produce deg_counts_barplot.pdf\n'
         exit 2
     }
     [ -s "$de_out/03_results/plots/sample_correlation_heatmap.png" ] || {
-        printf 'ERROR: rnaseq-de-flow r2 did not produce sample_correlation_heatmap.png\n'
+        printf 'ERROR: rnaseq-de-flow did not produce sample_correlation_heatmap.png\n'
         exit 2
     }
 } > "$step_log" 2>&1; then
@@ -1167,17 +1252,18 @@ fi
 
 step_name="08_rnaseq_enrichment"
 step_log="$logs_steps_dir/${step_name}.log"
-enrichment_cmd="taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list $(sq "$gene_list") --ranked-genes $(sq "$ranked_genes") --gene-sets $(sq "$gene_sets_path") --outdir $(sq "$enrichment_out") --id-column gene_id --score-column score --min-size $(sq "$enrichment_min_size") --max-size $(sq "$enrichment_max_size") --pvalue-cutoff $(sq "$enrichment_pvalue_cutoff") --padj-method $(sq "$enrichment_padj_method") --top-n $(sq "$enrichment_top_n") --seed $(sq "$enrichment_seed") --force"
+enrichment_cmd="taf-rnaseq-enrichment-flow-v0.2.0-r1 --gene-list $(sq "$gene_list") --ranked-genes $(sq "$ranked_genes") --gene-sets $(sq "$gene_sets_path") --outdir $(sq "$enrichment_out") --id-column gene_id --score-column score --min-size $(sq "$enrichment_min_size") --max-size $(sq "$enrichment_max_size") --pvalue-cutoff $(sq "$enrichment_pvalue_cutoff") --padj-method $(sq "$enrichment_padj_method") --top-n $(sq "$enrichment_top_n") --seed $(sq "$enrichment_seed") --force"
 [ "$have_background" = no ] || enrichment_cmd="$enrichment_cmd --background $(sq "$background_path")"
+enrichment_cmd="$enrichment_cmd @enrichment-both-background-step: ::(@:)enrichment-enrichment-both-background-step:: @: @enrichment-both-step: ::(@:)enrichment-enrichment-both-step:: @: @enrichment-ora-background-step: ::(@:)enrichment-enrichment-ora-background-step:: @: @enrichment-ora-step: ::(@:)enrichment-enrichment-ora-step:: @: @enrichment-gsea-step: ::(@:)enrichment-enrichment-gsea-step:: @: @render-dotplot-step: ::(@:)enrichment-render-dotplot-step:: @: @render-extra-plots-step: ::(@:)enrichment-render-extra-plots-step:: @:"
 record_command "$step_name" "$enrichment_cmd"
 log "START $step_name"
 if {
     printf '# step: %s\n' "$step_name"
     printf '# command: %s\n' "$enrichment_cmd"
     if [ "$have_background" = yes ]; then
-        [[taf: taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --background '"$background_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force ]] </dev/null
+        [[taf: taf-rnaseq-enrichment-flow-v0.2.0-r1 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --background '"$background_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force @enrichment-both-background-step: ::(@:)enrichment-enrichment-both-background-step:: @: @enrichment-both-step: ::(@:)enrichment-enrichment-both-step:: @: @enrichment-ora-background-step: ::(@:)enrichment-enrichment-ora-background-step:: @: @enrichment-ora-step: ::(@:)enrichment-enrichment-ora-step:: @: @enrichment-gsea-step: ::(@:)enrichment-enrichment-gsea-step:: @: @render-dotplot-step: ::(@:)enrichment-render-dotplot-step:: @: @render-extra-plots-step: ::(@:)enrichment-render-extra-plots-step:: @: ]] </dev/null
     else
-        [[taf: taf-rnaseq-enrichment-flow-v0.1.0-r3 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force ]] </dev/null
+        [[taf: taf-rnaseq-enrichment-flow-v0.2.0-r1 --gene-list '"$gene_list"' --ranked-genes '"$ranked_genes"' --gene-sets '"$gene_sets_path"' --outdir '"$enrichment_out"' --id-column gene_id --score-column score --min-size '"$enrichment_min_size"' --max-size '"$enrichment_max_size"' --pvalue-cutoff '"$enrichment_pvalue_cutoff"' --padj-method '"$enrichment_padj_method"' --top-n '"$enrichment_top_n"' --seed '"$enrichment_seed"' --force @enrichment-both-background-step: ::(@:)enrichment-enrichment-both-background-step:: @: @enrichment-both-step: ::(@:)enrichment-enrichment-both-step:: @: @enrichment-ora-background-step: ::(@:)enrichment-enrichment-ora-background-step:: @: @enrichment-ora-step: ::(@:)enrichment-enrichment-ora-step:: @: @enrichment-gsea-step: ::(@:)enrichment-enrichment-gsea-step:: @: @render-dotplot-step: ::(@:)enrichment-render-dotplot-step:: @: @render-extra-plots-step: ::(@:)enrichment-render-extra-plots-step:: @: ]] </dev/null
     fi
     [ -s "$enrichment_out/03_results/enrichment/ora_results.tsv" ] || {
         printf 'ERROR: rnaseq-enrichment-flow did not produce ora_results.tsv\n'
@@ -1188,27 +1274,27 @@ if {
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/dotplot.pdf" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce dotplot.pdf\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce dotplot.pdf\n'
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/dotplot.png" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce dotplot.png\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce dotplot.png\n'
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/plot_summary.tsv" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce plot_summary.tsv\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce plot_summary.tsv\n'
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/ora_barplot.png" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce ora_barplot.png\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce ora_barplot.png\n'
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/gsea_nes_plot.png" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce gsea_nes_plot.png\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce gsea_nes_plot.png\n'
         exit 2
     }
     [ -s "$enrichment_out/03_results/enrichment/gsea_enrichment_curves.png" ] || {
-        printf 'ERROR: rnaseq-enrichment-flow r3 did not produce gsea_enrichment_curves.png\n'
+        printf 'ERROR: rnaseq-enrichment-flow did not produce gsea_enrichment_curves.png\n'
         exit 2
     }
 } > "$step_log" 2>&1; then
@@ -1222,7 +1308,7 @@ fi
 
 step_name="09_rnaseq_report"
 step_log="$logs_steps_dir/${step_name}.log"
-report_cmd="taf-rnaseq-report-flow-v0.2.0-r2 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --analysis-mode $(sq "$mode") --analysis-route $(sq "$route") --de-source $(sq "$de_source") --outdir $(sq "$report_out") --force"
+report_cmd="taf-rnaseq-report-flow-v0.3.0-r2 --standard-out $(sq "$outdir") --project-name $(sq "$project_name") --analysis-mode $(sq "$mode") --analysis-route $(sq "$route") --de-source $(sq "$de_source") --outdir $(sq "$report_out") --force "
 record_command "$step_name" "$report_cmd"
 log "START $step_name"
 if {
@@ -1230,7 +1316,7 @@ if {
     printf '# pre-report: collect split PNG/PDF standard plot gallery\n'
     collect_all_standard_plots
     printf '# command: %s\n' "$report_cmd"
-    [[taf: taf-rnaseq-report-flow-v0.2.0-r2 --standard-out '"$outdir"' --project-name '"$project_name"' --analysis-mode '"$mode"' --analysis-route '"$route"' --de-source '"$de_source"' --outdir '"$report_out"' --force ]] </dev/null
+    [[taf: taf-rnaseq-report-flow-v0.3.0-r2 --standard-out '"$outdir"' --project-name '"$project_name"' --analysis-mode '"$mode"' --analysis-route '"$route"' --de-source '"$de_source"' --outdir '"$report_out"' --force  ]] </dev/null
     [ -s "$report_out/04_reports/rnaseq_report.html" ] || {
         printf 'ERROR: rnaseq-report-flow did not produce rnaseq_report.html\n'
         exit 2
@@ -1411,17 +1497,17 @@ if {
         printf '    "lfc_cutoff": %s\n' "$lfc_cutoff"
         printf '  },\n'
         printf '  "dependencies": {\n'
-        printf '    "taf-rnaseq-index-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-expression-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-alignment-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-alignment-qc-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-count-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-de-flow": "0.1.0-r2",\n'
-        printf '    "taf-rnaseq-enrichment-flow": "0.1.0-r3",\n'
-        printf '    "taf-rnaseq-report-flow": "0.2.0-r2",\n'
-        printf '    "taf-rnaseq-denovo-assembly-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-denovo-expression-flow": "0.1.0-r1",\n'
-        printf '    "taf-rnaseq-denovo-annotation-flow": "0.1.0-r1"\n'
+        printf '    "taf-rnaseq-index-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-expression-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-alignment-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-alignment-qc-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-count-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-de-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-enrichment-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-report-flow": "0.3.0-r2",\n'
+        printf '    "taf-rnaseq-denovo-assembly-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-denovo-expression-flow": "0.2.0-r1",\n'
+        printf '    "taf-rnaseq-denovo-annotation-flow": "0.2.0-r1"\n'
         printf '  },\n'
         printf '  "outputs": {\n'
         if [ "$mode" = "reference" ]; then

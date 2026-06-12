@@ -1,7 +1,7 @@
 # rnaseq-standard-flow De Novo Analysis Manual
 
 This manual focuses on the explicit no-reference route of
-`rnaseq-standard-flow 0.2.0-r2`. It is written for projects where a reliable
+`rnaseq-standard-flow 0.3.0-r1`. It is written for projects where a reliable
 reference genome and gene annotation are missing, incomplete, or not suitable
 for the biological question.
 
@@ -283,6 +283,52 @@ but the features are assembled transcripts.
 `rnaseq-enrichment-flow`. In de novo mode, the GMT/background are generated
 from homology annotation.
 
+### 6.1 Advanced Internal Tool Passthrough
+
+Real de novo projects sometimes need lower-level tool options that are not
+promoted to stable top-level standard-flow parameters. A common example is
+Trinity in silico read-normalization tuning for large or highly redundant input
+FASTQ sets. Standard-flow bridges relevant internal subflow `@step:` blocks with
+namespaced top-level blocks. They are empty by default and do not change any
+behavior unless explicitly supplied.
+
+Most relevant de novo-mode bridge blocks are:
+
+| Standard-flow block | Passed to internal subflow block |
+| --- | --- |
+| `@denovo-assembly-trinity-assembly-step: ... @:` | `rnaseq-denovo-assembly-flow @trinity-assembly-step:` |
+| `@denovo-assembly-rnaspades-assembly-step: ... @:` | `rnaseq-denovo-assembly-flow @rnaspades-assembly-step:` |
+| `@denovo-assembly-busco-step: ... @:` | `rnaseq-denovo-assembly-flow @busco-step:` |
+| `@denovo-expression-salmon-denovo-index-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-index-step:` |
+| `@denovo-expression-salmon-denovo-quant-pe-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-quant-pe-step:` |
+| `@denovo-expression-salmon-denovo-quant-se-step: ... @:` | `rnaseq-denovo-expression-flow @salmon-denovo-quant-se-step:` |
+| `@denovo-annotation-transdecoder-longorfs-step: ... @:` | `rnaseq-denovo-annotation-flow @transdecoder-longorfs-step:` |
+| `@denovo-annotation-transdecoder-predict-step: ... @:` | `rnaseq-denovo-annotation-flow @transdecoder-predict-step:` |
+| `@denovo-annotation-diamond-blastp-step: ... @:` | `rnaseq-denovo-annotation-flow @diamond-blastp-step:` |
+| `@de-deseq2-step: ... @:` | `rnaseq-de-flow @deseq2-step:` |
+| `@enrichment-enrichment-gsea-step: ... @:` | `rnaseq-enrichment-flow @enrichment-gsea-step:` |
+
+The complete list is available in `docs/help.md` and the README.
+
+For example, a large de novo assembly run can limit Trinity normalization depth:
+
+```sh
+taf-rnaseq-standard-flow \
+  --mode denovo \
+  --samples samples.tsv \
+  --metadata metadata.tsv \
+  --design '~ condition' \
+  --contrast condition:treated:control \
+  --protein-db proteins.faa \
+  --go-map protein_go_map.tsv \
+  --outdir rnaseq-denovo-standard-out \
+  @denovo-assembly-trinity-assembly-step: --normalize_max_read_cov 50 @:
+```
+
+Use passthrough for advanced resource, algorithm, or tool-specific cases.
+Prefer stable top-level options for routine analyses because they are easier to
+document, audit, and interpret in reports.
+
 ## 7. Options Not Used In De Novo Mode
 
 These options are reference-only:
@@ -447,9 +493,9 @@ taf-rnaseq-standard-flow \
   --outdir yeast-denovo-standard-out \
   --threads 4 \
   --max-memory 8G \
-  --min-contig-len 100 \
-  --denovo-min-orf-aa 30 \
-  --denovo-evalue 1e-3 \
+  --min-contig-len 200 \
+  --denovo-min-orf-aa 50 \
+  --denovo-evalue 1e-5 \
   --denovo-max-target-seqs 1 \
   --no-normalize \
   --project-name "Yeast SNF2 RNA-seq de novo standard test"
@@ -554,6 +600,10 @@ taf-rnaseq-standard-flow \
   --outdir yeast-denovo-standard-24sample-out \
   --threads 8 \
   --max-memory 32G \
+  --min-contig-len 200 \
+  --denovo-min-orf-aa 50 \
+  --denovo-evalue 1e-5 \
+  --denovo-max-target-seqs 1 \
   --project-name "Yeast SNF2 RNA-seq de novo 24-sample standard"
 ```
 
